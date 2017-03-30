@@ -22,8 +22,10 @@ rm(list=ls())
 ##################
 #Directory paths 
 ##################
-datapath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/3.Analysis/"
+datapath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Data/"
+to.script = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Scripts/"
 graphpath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/4.Results/"
+
 
 ##################
 #Load packages
@@ -38,9 +40,8 @@ library(MASS)
 ##################
 #Load data in R environment
 ##################
-setwd(datapath)
 # Prot.b =  read.delim("BG_protist_data_(20161124).txt") #Green were removed
-Prot.b =  read.delim(paste0(datapath,"BG_protist_data_(20170120)_test.txt")) #Protist
+Prot.b =  read.delim(paste0(datapath,"BG_protist_data_(20170307).txt")) #Protist
 Cyto2 = read.delim(paste0(datapath,"FULL_Cyto_BlueGreen(20160816).txt")) # Bacteria
 
 ##################
@@ -48,6 +49,7 @@ Cyto2 = read.delim(paste0(datapath,"FULL_Cyto_BlueGreen(20160816).txt")) # Bacte
 ##################
 
 #...Arrange structure cytometry data
+Cyto2 = Cyto2[order(Cyto2$Date),]
 Cyto2$day = c(rep(0,32),rep(7,524),rep(15,524),rep(21,524),rep(29,524)) #create a new variable "day"
 Cyto2$count.ml = ((Cyto2$Count*1000)/Cyto2$Volume.uL)*1000 #convert from dens/50ul to dens/mL and then multiply by the cytometry dilution factor (1000)
 sel.rep = c("A","B") #A,B for the whole duration - ABCD only on the last day
@@ -61,35 +63,36 @@ Cyto = Cyto[Cyto$Treatment %in% sel.treatment,] #Drop "monocultures"
 ##################
 Prot.b$date = with(Prot.b,revalue(date, c("16-05-02"="20160502", "16-05-23"="20160523","16-05-31"="20160531","5/17/2016"="20160517","5/9/2016"="20160509")))
 Prot.b$date = factor(Prot.b$date,levels=c("20160502","20160509","20160517","20160523","20160531"))
+Prob.b = Prot.b[order(Prot.b$date),]
 Prot.b$day = c(rep(0,30),rep(7,302),rep(15,302),rep(21,302),rep(29,302))
+
 
 ##################
 #Aproximate initial protist total abundances per microcosm size from initial pooled cultures that were used to fill each microcosm at day 0
 #(Lines 1:30 from dataset)
 ################### 
-  
-  #1.Extract and Repeat pooled cultures from Day 0 for each patch size  
+{  #1.Extract and Repeat pooled cultures from Day 0 for each patch size  
 #Protist
-lala = Prot.b[rep(0:30,times=4), ]
-row.names(lala) = 1:120
-lala$Size[1:16] = 7.5
-lala$Size[31:46] = 13
-lala$Size[61:76] = 22.5
-lala$Size[91:106] = 45
+Prot.day0 = Prot.b[rep(0:30,times=4), ]
+row.names(Prot.day0) = 1:120
+Prot.day0$Size[1:16] = 7.5
+Prot.day0$Size[31:46] = 13
+Prot.day0$Size[61:76] = 22.5
+Prot.day0$Size[91:106] = 45
 
 #Bacteria (for bacteria only pooled cultured from blue landscapes, connected and isolated, were measured [see original data] for logistic reasons, we assumed that our initial bacteria meausres are representative of the entire intial conditions for all treatments)
 #Repeat for each patch size
-lala2 = Cyto[rep(0:8,times=4),]
-row.names(lala2) = 1:32
-lala2$Size[1:8] = 7.5
-lala2$Size[9:16] = 13
-lala2$Size[17:24] = 22.5
-lala2$Size[25:32] = 45
+Cyto.day0 = Cyto[rep(0:8,times=4),]
+row.names(Cyto.day0) = 1:32
+Cyto.day0$Size[1:8] = 7.5
+Cyto.day0$Size[9:16] = 13
+Cyto.day0$Size[17:24] = 22.5
+Cyto.day0$Size[25:32] = 45
 #Repeat for each landscape type (Blue and Green)
-lala3 = lala2[rep(0:32,times=2),]
-row.names(lala3) = 1:64
-lala3$Landscape[33:64] = "Green"
-lala3$Size[lala3$Landscape=="Green"]=10
+Cyto.day0.green = Cyto.day0[rep(0:32,times=2),]
+row.names(Cyto.day0.green) = 1:64
+Cyto.day0.green$Landscape[33:64] = "Green"
+Cyto.day0.green$Size[Cyto.day0.green$Landscape=="Green"]=10
 
   #2.Remove Day 0 from the original dataset
 #Protist
@@ -100,12 +103,12 @@ Cyto = Cyto[Cyto$Date %in% sel.date,]
 
   #3. Merge the new 'Day 0' repeated for each patch size with dataset
 #Protist
-Prot.b = rbind(lala,Prot.b)
+Prot.b = rbind(Prot.day0,Prot.b)
 str(Prot.b)
 #'data.frame':	1328 obs. of  31 variables:
 
 #Bacteria
-Cyto = rbind(lala3,Cyto)
+Cyto = rbind(Cyto.day0.green,Cyto)
 str(Cyto)
 #'data.frame':	1216 obs. of  20 variables:
 row.names(Cyto) = 1:1216
@@ -120,7 +123,7 @@ row.names(Prot.b) = 1:1216 #Same number of rows with Cyto but very different dat
 ##################
 #Calculate protist TOTAL abundance per microcosm (as opposed to density per volume)
 ##################
-colnames(Prot.b)[23:29] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul")
+colnames(Prot.b)[23:30] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul","Other.ul")
 Prot.b$Rot.all = Prot.b$Rot.ul*Prot.b$Size*1000
 Prot.b$Spi.all = Prot.b$Spi.ul*Prot.b$Size*1000
 Prot.b$Ble.all = Prot.b$Ble.ul*Prot.b$Size*1000
@@ -128,36 +131,33 @@ Prot.b$Pca.all = Prot.b$Pca.ul*Prot.b$Size*1000
 Prot.b$Col.all = Prot.b$Col.ul*Prot.b$Size*1000
 Prot.b$Chi.all = Prot.b$Chi.ul*Prot.b$Size*1000
 Prot.b$Tet.all = Prot.b$Tet.ul*Prot.b$Size*1000
+Prot.b$Other.all = Prot.b$Other.ul*Prot.b$Size*1000
 Prot.b$bioarea.all = Prot.b$bioarea_per_ul*Prot.b$Size*1000
 
 Prot.b$Tet.all[Prot.b$day==0 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"]
-#[1] 6127.326 6165.698 7121.512 6758.721 5677.326 4690.116 8277.907 5248.256
+#[1] 6127.326 6165.698 7121.512 6758.721 5677.326 4690.116 8277.907 5248.256}
 #Now we have estimated initial abundances for each patch size for day 0
+ }
+
 
 ##################
 #Specify factors and Drop unused levels
 ##################
-Prot.b$date = factor(Prot.b$date)
 Prot.b$Label = factor(Prot.b$Label)
-Prot.b$ID_TUBE = factor(Prot.b$ID_TUBE)
-Prot.b$Treatment = factor(Prot.b$Treatment)
-Prot.b$Landscape = factor(Prot.b$Landscape)
 Prot.b$Size = factor(Prot.b$Size)
-Prot.b$Replicate = factor(Prot.b$Replicate)
+Prot.b = droplevels(Prot.b)
 
 #...Fix structure and drop unused levels
 Cyto$Date = factor(Cyto$Date)
 Cyto$Label = factor(Cyto$Label)
-Cyto$ID_TUBE = factor(Cyto$ID_TUBE)
-Cyto$Treatment = factor(Cyto$Treatment)
-Cyto$Landscape = factor(Cyto$Landscape)
 Cyto$Size = factor(Cyto$Size)
-Cyto$Replicate = factor(Cyto$Replicate)
+Cyto = droplevels(Cyto)
+
 
 #...Calculate some Protist community aggregate properties
-Prot.b$Prot.tot.ab = rowSums(Prot.b[,32:38])
-Prot.b$Prot.rich = specnumber(Prot.b[,32:38])
-Prot.b$Prot.div = diversity(Prot.b[,32:38],"simpson")
+Prot.b$Prot.tot.ab = rowSums(Prot.b[,32:39])
+Prot.b$Prot.rich = specnumber(Prot.b[,32:39])
+Prot.b$Prot.div = diversity(Prot.b[,32:39],"simpson")
 
 
 #########################################################################
@@ -167,7 +167,10 @@ Prot.b$Prot.div = diversity(Prot.b[,32:38],"simpson")
 ##################
 # Protist species total abundance per treatment (connected/isolated) and per patch size
 ##################
-col.p = rainbow(7)
+{col.p = rainbow(8)
+
+pdf(paste(graphpath,"Prot_Blue_Treatment_Size.pdf"),width=8,height=8)
+
 
 for(i in 1:nlevels(Prot.b$Treatment)){
   
@@ -175,8 +178,6 @@ for(i in 1:nlevels(Prot.b$Treatment)){
   
   max = max(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],32:38])
 
-pdf(paste("Blue",levels(Prot.b$Treatment)[i],levels(Prot.b$Size)[j],"Prot",".pdf",sep="_"),width=8,height=8)
-  
   with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Rot.all,col=col.p[1],ylim=c(0,max),legend=T,xlab="Time",ylab="Protist total abundance"))
   par(new=T)
   with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Chi.all,col=col.p[6],yaxt="n",ylim=c(0,max),legend=T,xlab="Time",ylab="Protist total abundance"))
@@ -190,23 +191,27 @@ pdf(paste("Blue",levels(Prot.b$Treatment)[i],levels(Prot.b$Size)[j],"Prot",".pdf
   with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Ble.all,col=col.p[3],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
   par(new=T)
   with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Spi.all,col=col.p[2],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
+  par(new=T)
+  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Other.all,col=col.p[2],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
+  
   
   title(main=paste(levels(Prot.b$Treatment)[i],levels(Prot.b$Size)[j],"mL"))
-  col.labels=c("Rot","Spi","Ble","PCA","Col","Chi","Tet")
+  col.labels=c("Rot","Spi","Ble","PCA","Col","Chi","Tet","Oth")
   testcol = col.p
   color.legend(4.5,10000,5,max,col.labels,testcol,cex=1,gradient="y")
   #dif between x1 and xr is the width of the rectangle
-  dev.off()
 } 
   }
 
-
-
+dev.off()}
 
 ##################
 # Protist temporal community patterns (aggregate properties) across patch sizes
 ##################
-col.p = rainbow(n=4,start=0.1)
+{col.p = rainbow(n=4,start=0.1)
+
+pdf(paste(graphpath,"Prot_Blue_DIV_AB_TIME.pdf"),width=8,height=8)
+
 with(Prot.b,lineplot.CI(day,Prot.tot.ab,Size,col=col.p,legend=T,xlab="Time",ylab="Protist total abundance"))
 
 with(Prot.b,lineplot.CI(day,Prot.tot.ab,Treatment,legend=T,xlab="Time",ylab="Protist total abundance"))
@@ -220,11 +225,16 @@ with(Prot.b,lineplot.CI(day,Prot.div,Size,col=col.p,legend=T,xlab="Time",ylab="P
 with(Prot.b,lineplot.CI(day,Prot.div,Treatment,col=col.p,legend=T,xlab="Time",ylab="Protist diversity (Simpson)"))
 
 with(Prot.b,lineplot.CI(day,bioarea.all,Treatment,col=col.p,legend=T,xlab="Time",ylab="Total bioarea"))
-
+dev.off()
+}
 
 ##################
 # Bacteria abundance patterns over time and by patch size*landscape*connected/isolated
 ##################
+{
+
+pdf(paste(graphpath,"BACT_AB_SIZE_LANDSCAPE_FLOW_TIME.pdf"),width=8,height=8)
+  
 
 for(i in 1:nlevels(Cyto$Treatment)){
   
@@ -233,20 +243,23 @@ for(i in 1:nlevels(Cyto$Treatment)){
     max = max(Cyto[Cyto$Treatment==levels(Cyto$Treatment)[i] & Cyto$Landscape==levels(Cyto$Landscape)[j],20])
 
     
-  pdf(paste(levels(Cyto$Landscape)[j],levels(Cyto$Treatment)[i],"BACT",".pdf",sep="_"),width=8,height=8)
     
     with(Cyto[Cyto$Treatment==levels(Cyto$Treatment)[i] & Cyto$Landscape==levels(Cyto$Landscape)[j],],lineplot.CI(day,count.ml,Size,col="black",ylim=c(0,max),legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
     
     
     title(main=paste(levels(Cyto$Treatment)[i],levels(Cyto$Landscape)[j]))
-dev.off()
+
   }
 }
+  dev.off()
+  }
 
 ##################
 # Bacteria temporal patterns across treatment (connected vs. isolated) and landscape
 ##################
-
+{
+pdf(paste(graphpath,"BACT_AB_LANDSCAPE_FLOW_TIME.pdf"),width=8,height=8)
+  
 with(Cyto[Cyto$Landscape=="Blue",],lineplot.CI(day,count.ml,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Blue")
 with(Cyto[Cyto$Landscape=="Green",],lineplot.CI(day,count.ml,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
@@ -256,35 +269,37 @@ with(Cyto[Cyto$Treatment=="Connected",],lineplot.CI(day,count.ml,Landscape,legen
 title(main="Connected")
 with(Cyto[Cyto$Treatment=="Isolated",],lineplot.CI(day,count.ml,Landscape,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Isolated")
+dev.off()
+}
 
 ##################
-# Protist temporal patterns across treatment (connected vs. isolated) and landscape
+#Protist beta-diversity
 ##################
-with(Prot.b,lineplot.CI(day,Prot.tot.ab,Treatment,legend=T,xlab="Time",ylab="Protist total abundance"))
-title(main="Blue")
-with(Prot.b,lineplot.CI(day,Prot.rich,Treatment,legend=T,xlab="Time",ylab="Protist richness"))
-title(main="Blue")
-with(Prot.b,lineplot.CI(day,Prot.div,Treatment,legend=T,xlab="Time",ylab="Protist diversity"))
-title(main="Blue")
-with(Prot.b,lineplot.CI(day,bioarea.all,Treatment,legend=T,xlab="Time",ylab="Protist total bioarea"))
-title(main="Blue")
-
-sp.mat = Prot.b[Prot.b$day!=0,32:38]
-# lala = rowSums(sp.mat)
-# which(lala==0)
-sp.mat[899,1:7] = 0.1
-sp.mat[1073,1:7] = 0.1
+{
+sp.mat = Prot.b[Prot.b$day!=0,32:39]
+sp.mat[899,1:8] = 0.1
+sp.mat[1073,1:8] = 0.1
 env = Prot.b[Prot.b$day!=0,c(2,5,8)]
 
 MDS.mod1 = metaMDS(decostand(sp.mat,"hell"), k=3,autotransform=FALSE,distance="bray")
-
-(fit = envfit(MDS.mod1, env, perm = 999))
-
+pdf(paste(graphpath,"PROT_BETADIV_FLOW.pdf"),width=8,height=8)
 ordiplot(MDS.mod1,type="n",choices=c(1,2),main=NULL,xlab="", ylab="")
-ordihull(MDS.mod1,groups=env$Treatment,show.groups="Isolated",col="gray88",label=F,lwd=3,lty=1)
-ordihull(MDS.mod1,groups=env$Treatment,show.groups="Connected",col="black",label=F,lwd=3,lty=2)
+ordihull(MDS.mod1,groups=env$Treatment,show.groups="Isolated",col="gray88",label=T,lwd=3,lty=1)
+ordihull(MDS.mod1,groups=env$Treatment,show.groups="Connected",col="black",label=T,lwd=3,lty=2)
 text(MDS.mod1, display="species", col="black",cex=0.5)
-points(MDS.mod1, display="sites", col=c("red"),cex=0.5)
+#points(MDS.mod1, display="sites", col=c("red"),cex=0.5)
+dev.off()
+}
+
+##################
+# Spatially explicit difference between connected and isolated 
+##################
+
+# HERE 
+
+
+
+
 
 
 ##################
@@ -292,14 +307,14 @@ points(MDS.mod1, display="sites", col=c("red"),cex=0.5)
 ##################
 #Build the dendritic landscapes from connectivity matrices and calculate network metrics of interest
 library(igraph)
-source(paste0(datapath,"Network_metric_bg.R"))
+source(paste0(to.script,"Network_metric_bg.R"))
 
 
 ################
 #...Bacteria
 #The first date is based on pooled cultures therefore the graph they produce cannot be interpreted
 #To graph an averaged through time, just remove the loop through Cyto$Date
-
+{
 for(i in 1:nlevels(Cyto$Date)) {
   for(j in 1:nlevels(Cyto$Replicate)) {
     for(k in 1:nlevels(Cyto$Treatment)) {
@@ -324,7 +339,7 @@ for(i in 1:nlevels(Cyto$Date)) {
       coords1[,2] <- max(coords1[,2])-coords1[,2] 
       
       #Open pdf
-      pdf(paste(levels(Cyto$Landscape)[z],levels(Cyto$Replicate)[j],levels(Cyto$Treatment)[k],"BACT",levels(Cyto$Date)[i],".pdf",sep="_"),width=8,height=8)
+      pdf(paste(graphpath,levels(Cyto$Landscape)[z],levels(Cyto$Replicate)[j],levels(Cyto$Treatment)[k],"BACT",levels(Cyto$Date)[i],".pdf",sep="_"),width=8,height=8)
       
       #if(i==4) magn=0.008 else magn=0.001
     
@@ -347,12 +362,11 @@ for(i in 1:nlevels(Cyto$Date)) {
     }
   }
 }
-
+}
 
 ################
 #...Protist
-
-# Color palett for all pies
+{# Color palett for all pies
 V(RepA.g)$pie.color=list(rainbow(7))
 V(RepB.g)$pie.color=list(rainbow(7))
 V(RepC.g)$pie.color=list(rainbow(7))
@@ -374,7 +388,7 @@ for(i in 1:nlevels(Prot.b$date)) {
       coords1 <- layout_on_grid(eval(parse(text= paste("Rep",levels(Prot.b$Replicate)[j],".","g",sep=""))),width=6,height=6) #set the rectangular layout
       coords1[,2] <- max(coords1[,2])-coords1[,2]
 
-      pdf(paste("Blue",levels(Prot.b$Replicate)[j],levels(Prot.b$Treatment)[k],"Prot",levels(Prot.b$date)[i],".pdf",sep="_"),width=8,height=8)
+      pdf(paste(graphpath,"Blue",levels(Prot.b$Replicate)[j],levels(Prot.b$Treatment)[k],"Prot",levels(Prot.b$date)[i],".pdf",sep="_"),width=8,height=8)
 
       if(i==4) magn=0.008 else magn=0.001
 
@@ -394,9 +408,7 @@ for(i in 1:nlevels(Prot.b$date)) {
 
     }
   }
-}
-
-
+}}
 
 
 #########################################################################
@@ -414,7 +426,8 @@ detach("package:igraph") #igraph masks several functions in other packages
 #Protist
 sel.date = c("20160509","20160517","20160523","20160531")
 Prot.b = Prot.b[Prot.b$date %in% sel.date,] 
-Prot.b$date = factor(Prot.b$date)#Bacteria
+Prot.b$date = factor(Prot.b$date)
+#Bacteria
 Cyto = Cyto[Cyto$Date %in% sel.date,]
 Cyto$Date = factor(Cyto$Date)
 
