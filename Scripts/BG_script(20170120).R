@@ -26,7 +26,6 @@ datapath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Data/"
 to.script = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Scripts/"
 graphpath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/4.Results/"
 
-
 ##################
 #Load packages
 ##################
@@ -40,12 +39,11 @@ library(MASS)
 ##################
 #Load data in R environment
 ##################
-# Prot.b =  read.delim("BG_protist_data_(20161124).txt") #Green were removed
 Prot.b =  read.delim(paste0(datapath,"BG_protist_data_(20170307).txt")) #Protist
 Cyto2 = read.delim(paste0(datapath,"FULL_Cyto_BlueGreen(20160816).txt")) # Bacteria
 
 ##################
-#Fix bacteria data structure for further preliminary exploration and analyses
+#Fix bacteria data structure for further exploration and analyses
 ##################
 
 #...Arrange structure cytometry data
@@ -59,17 +57,17 @@ Cyto = Cyto[Cyto$Treatment %in% sel.treatment,] #Drop "monocultures"
 
 
 ##################
-#Fix Protist data structure for further preliminary exploration and analyses
+#Fix Protist data structure for further exploration and analyses
 ##################
 Prot.b$date = with(Prot.b,revalue(date, c("16-05-02"="20160502", "16-05-23"="20160523","16-05-31"="20160531","5/17/2016"="20160517","5/9/2016"="20160509")))
 Prot.b$date = factor(Prot.b$date,levels=c("20160502","20160509","20160517","20160523","20160531"))
 Prot.b = Prot.b[order(Prot.b$date),]
 Prot.b$day = c(rep(0,30),rep(7,302),rep(15,302),rep(21,302),rep(29,302))
 
-
 ##################
 #Aproximate initial protist total abundances per microcosm size from initial pooled cultures that were used to fill each microcosm at day 0
 #(Lines 1:30 from dataset)
+#RUN THESE LINES ONLY IF YOU WISH TO HAVE DAY0 IN THE PRELIMINARY DATA BELOW
 ################### 
 {  #1.Extract and Repeat pooled cultures from Day 0 for each patch size  
 #Protist
@@ -136,7 +134,7 @@ Prot.b$Tet.all = Prot.b$Tet.ul*Prot.b$Size*1000
 Prot.b$Other.all = Prot.b$Other.ul*Prot.b$Size*1000
 Prot.b$bioarea.all = Prot.b$bioarea_per_ul*Prot.b$Size*1000
 
-Prot.b$Tet.all[Prot.b$day==7 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"]
+head(Prot.b$Tet.all[Prot.b$day==7 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"])
 # [1]  830.23255 1196.51163 1304.65116  165.69767    0.00000  231.97675  568.60465  436.04651  559.88372
 
 
@@ -152,7 +150,6 @@ Cyto$Date = factor(Cyto$Date)
 Cyto$Label = factor(Cyto$Label)
 Cyto$Size = factor(Cyto$Size)
 Cyto = droplevels(Cyto)
-
 
 #...Calculate some Protist community aggregate properties
 Prot.b$Prot.tot.ab = rowSums(Prot.b[,32:39])
@@ -302,7 +299,8 @@ source(paste0(to.script,"Network_metric_bg.R"))
 
 ################
 #...Bacteria
-#The first date is based on pooled cultures therefore the graph they produce cannot be interpreted
+
+#IF YOU ADDED DAY 0: The first date is based on pooled cultures therefore the graph they produce cannot be interpreted
 #To graph an averaged through time, just remove the loop through Cyto$Date
 {
 for(i in 1:nlevels(Cyto$Date)) {
@@ -401,8 +399,12 @@ for(i in 1:nlevels(Prot.b$date)) {
 }}
 
 
+#########################################################################
+################# MAIN FIGURES
+#########################################################################
+
 ##################
-# Clean the environment before going further
+# Clean the environment
 #################
 #...Clean the environment 
 remove(lala);remove(lala2);remove(lala3);rm(sel.date);rm(sel.rep);rm(sel.treatment);rm(col.p)
@@ -411,7 +413,10 @@ remove(coords1);remove(abundance);remove(fine);remove(graphCol);rm(i);rm(j);rm(k
 rm(clrs)
 detach("package:igraph") #igraph masks several functions in other packages
 
-#Remove Day 0 for further analyses 
+##################
+# Remove Day 0 
+#################
+
 #Protist
 sel.date = c("20160509","20160517","20160523","20160531")
 Prot.b = Prot.b[Prot.b$date %in% sel.date,] 
@@ -420,16 +425,18 @@ Prot.b$date = factor(Prot.b$date)
 Cyto = Cyto[Cyto$Date %in% sel.date,]
 Cyto$Date = factor(Cyto$Date)
 
-
 ##################
-# Log Response Ratio
-##################
+# Merge network metrics to Prot.b, Cyto.b, Cyto.g data
+#################
 { 
 
-
-#...Extract blue landscape only for bacteria
+#...Extract blue and green landscapes only for bacteria (we don't have protist data for green landscapes)
 selb = c("Blue")
+selg = c("Green")
 Cyto.b = Cyto[Cyto$Landscape %in% selb,]
+Cyto.g = Cyto[Cyto$Landscape %in% selg,]
+Cyto.b= droplevels(Cyto.b)
+Cyto.g= droplevels(Cyto.g)
 
 #...Remove moncultures from protist data
 sel.treat = c("Connected","Isolated")
@@ -448,9 +455,150 @@ Cyto.b$Dist = rep(c(RepA.dist,RepB.dist),8)
 Cyto.b$Diam = rep(c(RepA.diam,RepB.diam),8)
 Cyto.b$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
 
+Cyto.g$Size = Prot.b$Size[which(Prot.b$Replicate %in% c("A","B"))]
+Cyto.g$Degree = rep(c(RepA.degree,RepB.degree),8)
+Cyto.g$Dist = rep(c(RepA.dist,RepB.dist),8)
+Cyto.g$Diam = rep(c(RepA.diam,RepB.diam),8)
+Cyto.g$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
+
 #...Fix some variables
 Prot.b$Size = as.numeric(as.character(Prot.b$Size))
 Cyto.b$Size = as.numeric(as.character(Cyto.b$Size))
+Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
+
+}
+
+##################
+# Plot effects from Green to blue
+##################
+{ 
+  pdf(paste0(graphpath,"Green_to_Blue.pdf"),width=8,height=8)
+  
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist total abundance (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main="Day 7")
+  abline(lm(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]), col="red",lwd=2)
+  
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist total abundance (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main="Day 29")
+  abline(lm(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
+  
+  plot(Prot.b$Prot.rich[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist richness (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main='Day 7')
+  abline(lm(Prot.b$Prot.rich[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
+  
+  plot(Prot.b$Prot.rich[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist richness (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main="Day 29")
+  abline(lm(Prot.b$Prot.rich[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
+  
+  plot(Cyto$count.ml[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Bacteria density (ind/mL) (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main = "Day 7")
+  abline(lm(Cyto$count.ml[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
+  
+  plot(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Bacteria density (ind/mL) (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main="Day 29")
+  abline(lm(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
+  
+  dev.off()
+}
+
+
+##################
+#Plot  effects from Blue to Green
+##################
+
+{ 
+  
+  pdf(paste0(graphpath,"Blue_to_Green.pdf"),width=8,height=8)
+  
+  #Effect of patch size in blue-connected on green-connected bacteria
+  #day 7
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")],
+              xlab="Patch size (blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",
+              log="y",main="day 7",col="darkgreen")#ylim=c(5500,65000000)
+  
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              col="blue",xlab="Patch size (blue-connected)",ylab="Protist abundance/bacteria density (blue-connected) - LOG",
+              ylim=c(5500,65000000),log="y",pch=17,main="Day 7")
+  par(new=T)
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")],
+              col="blue",xlab="",ylab="",ylim=c(5500,65000000),log="y",pch=16)
+  
+  #day 29
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")],
+              xlab="Patch size (blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",
+              log="y",col="darkgreen",main="day 29")#ylim=c(5500,65000000)
+  
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              col="blue",xlab="Patch size (blue-connected)",ylab="Protist abundance/bacteria density (blue-connected) - LOG",
+              ylim=c(1400,70000000),log="y",main ="day 29",pch=17)
+  par(new=T)
+  lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
+              Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")],
+              col="blue",xlab="",ylab="",ylim=c(1400,70000000),log="y",pch=16)
+  
+  
+  
+  #Effect of closeness in blue-connected on green-connected bacteria
+  
+  #day 7
+  plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+       ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=16,col="darkgreen",xlab="Closeness (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 7")
+  abline(lm(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+            ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
+         col="green",lwd=2)
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
+       ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=17,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
+  # plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")] 
+  #      ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+  #      pch=16,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
+  
+  #day 29
+  plot(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+       ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=16,col="darkgreen",xlab="Closeness (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 29")
+  abline(lm(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+            ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
+         col="green",lwd=2)
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
+       ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=17,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 29")
+  
+  #Effect of distance to outlet in blue-connected on green-connected bacteria
+  
+  #day 7
+  plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+       ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=16,col="darkgreen",xlab="Distance to outlet (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 7")
+  abline(lm(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+            ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
+         col="green",lwd=2)
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
+       ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=17,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
+  # plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")] 
+  #      ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+  #      pch=16,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
+  
+  #day 29
+  plot(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+       ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=16,col="darkgreen",xlab="Distance to outlet (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 29")
+  abline(lm(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
+            ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
+         col="green",lwd=2)
+  plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
+       ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
+       pch=17,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 29")
+  
+  dev.off()
+}
+
+
+##################
+# Plot Log Response Ratio
+##################
+{ 
 
 #...Separate connected and isolated landscapes
 #.......Connected
@@ -462,6 +610,7 @@ Prot.b.connected$indiv_per_ul[467] = 1
 Prot.b.connected$Prot.rich[467] = 1
 #..........Bacteria
 Cyto.b.connected = Cyto.b[which(Cyto.b$Treatment=="Connected"),]
+Cyto.g.connected = Cyto.g[which(Cyto.g$Treatment=="Connected"),]
 #.......Isolated
 #..........Protist
 Prot.b.isolated = Prot.b[which(Prot.b$Treatment=="Isolated"),]
@@ -471,11 +620,13 @@ Prot.b.isolated$indiv_per_ul[497] = 1
 Prot.b.isolated$Prot.rich[497] = 1
 #..........Bacteria
 Cyto.b.isolated = Cyto.b[which(Cyto.b$Treatment=="Isolated"),]
+Cyto.g.isolated = Cyto.g[which(Cyto.g$Treatment=="Isolated"),]
 
 #...Calculate log Response Ratio
 var.prot.rich = log(Prot.b.connected$Prot.rich/Prot.b.isolated$Prot.rich)
 var.prot.ab = log(Prot.b.connected$indiv_per_ul/Prot.b.isolated$indiv_per_ul)
 var.bact.ab = log(Cyto.b.connected$count.ml/Cyto.b.isolated$count.ml)
+var.bact.green = log(Cyto.g.connected$count.ml/Cyto.g.isolated$count.ml)
 
 #Calculate 95% CI for each factor levels of interest
 err.rich.size = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45)])/sqrt(44))
@@ -487,6 +638,9 @@ err.ab.day = c(qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==7)])/sqrt(
 err.bact.size = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==45)])/sqrt(44))
 err.bact.day = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==29)])/sqrt(144))
 
+err.bact.green.size = c(qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==45)])/sqrt(44))
+err.bact.green.day = c(qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==29)])/sqrt(144))
+
 #Plot Figures
  
 library(Hmisc)
@@ -495,7 +649,7 @@ pdf(paste(graphpath,"LRR.pdf"),width=8,height=8)
 
 #...Patch size
 #Species richness
-plot(Prot.b.isolated$Size,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness")
+plot(Prot.b.isolated$Size,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Protist richness")
 axis(side = 1, at =c(7.5,13,22.5,45))
 abline(h=0,lwd=1,col="gray")
 x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
@@ -514,8 +668,8 @@ ymax = y + err.ab.size
 yminus = y - err.ab.size
 errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
-#Bacteria density 
-plot(Cyto.b.isolated$Size,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density")
+#Bacteria density (Blue) 
+plot(Cyto.b.isolated$Size,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Blue)")
 axis(side = 1, at =c(7.5,13,22.5,45))
 abline(h=0,lwd=1,col="gray")
 x = as.numeric(levels(as.factor(Cyto.b.isolated$Size)))
@@ -524,9 +678,19 @@ ymax = y + err.bact.size
 yminus = y - err.bact.size
 errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
+#Bacteria density (Green) 
+plot(Cyto.g.isolated$Size,var.bact.green,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Green)")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Cyto.g.isolated$Size)))
+y = tapply(var.bact.green,Cyto.g.isolated$Size,mean)
+ymax = y + err.bact.green.size
+yminus = y - err.bact.green.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
 #...Time
 #Species richness
-plot(Prot.b.isolated$day,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness")
+plot(Prot.b.isolated$day,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Protist richness")
 axis(side = 1, at =c(7,15,21,29))
 abline(h=0,lwd=1,col="gray")
 x = as.numeric(levels(as.factor(Prot.b.isolated$day)))
@@ -546,7 +710,7 @@ yminus = y - err.ab.day
 errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
 #Bacteria density 
-plot(Cyto.b.isolated$day,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density")
+plot(Cyto.b.isolated$day,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Blue)")
 axis(side = 1, at =c(7,15,21,29))
 abline(h=0,lwd=1,col="gray")
 x = as.numeric(levels(as.factor(Cyto.b.isolated$day)))
@@ -555,6 +719,15 @@ ymax = y + err.bact.day
 yminus = y - err.bact.day
 errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
+#Bacteria density 
+plot(Cyto.g.isolated$day,var.bact.green,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Green)")
+axis(side = 1, at =c(7,15,21,29))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Cyto.g.isolated$day)))
+y = tapply(var.bact.green,Cyto.g.isolated$day,mean)
+ymax = y + err.bact.green.day
+yminus = y - err.bact.green.day
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
 #Patch size at day 7
 err.rich.size.day7 = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5 & Prot.b.isolated$day==7)])/sqrt(85),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13 & Prot.b.isolated$day==7)])/sqrt(34),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5 & Prot.b.isolated$day==7)])/sqrt(14),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45 & Prot.b.isolated$day==7)])/sqrt(11))
@@ -578,112 +751,34 @@ ymax = y + err.rich.size
 yminus = y - err.rich.size
 errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 
-
 dev.off()
 detach("package:Hmisc") 
 
 }
 
-#########################################################################
-################# MAIN ANALYSES
-#########################################################################
+
+library(nlme)
+Mod = lme(var.prot.rich ~ as.factor(Size)+day, ~ as.factor(date)|Replicate,data=Prot.b.connected,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+hist(Mod$residuals,breaks=50)
+summary(Mod)$tTable
+
+Mod2 = lme(var.bact.green ~ as.factor(Size)+day, ~ as.factor(Date)|Replicate,data=Cyto.g.isolated,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+hist(Mod2$residuals,breaks=50)
+summary(Mod2)$tTable
 
 
-#..........................................#
+#########################################################################
+################# MAIN ANALYSES (NEED TO RE_DONE)
+#########################################################################
+
+{#..........................................#
 #           Blue-green interactions        #
 #..........................................#
-
-#..Identify probability distribution
-{ 
-with(Cyto,plot(density(count.ml)))
-with(Cyto,plot(density(log(count.ml))))
-summary(Cyto$count.ml)
-with(Cyto,qqp(count.ml,"norm"))
-with(Cyto,qqp(count.ml,"lnorm"))
-# qqp requires estimates of the parameters of the negative binomial, Poisson
-# and gamma distributions. You can generate estimates using the fitdistr
-# function. Save the output and extract the estimates of each parameter as I
-# have shown below.
-nbinom <- with(Cyto,fitdistr(count.ml, "negative binomial"))
-with(Cyto,qqp(count.ml, "nbinom", size = nbinom$estimate[[1]], mu = nbinom$estimate[[2]]))
-poisson <- with(Cyto,fitdistr(count.ml, "Poisson"))
-with(Cyto,qqp(count.ml, "pois",poisson$estimate))
-gamma = with(Cyto,fitdistr(count.ml, "gamma"))
-with(Cyto,qqp(Count, "gamma", shape = gamma$estimate[[1]], rate = gamma$estimate[[2]]))
-}
 
 #Run model
 library(nlme)
 Mod = lme(log(Count) ~ Treatment*Landscape*as.numeric(Date), ~ Date|Replicate,data=Cyto,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod)$tTable
-
-#..........................................#
-#           Blue Landscape only            #
-#..........................................#
-
-
-##################
-# Extract blue landscapes only from Bacteria data
-##################
-
-#############
-#...Bacteria
-selb = c("Blue")
-Cyto.b = Cyto[Cyto$Landscape %in% selb,]
-#.Fix structure and drop unused levels
-Cyto.b$Date = factor(Cyto.b$Date)
-Cyto.b$Label = factor(Cyto.b$Label)
-Cyto.b$ID_TUBE = factor(Cyto.b$ID_TUBE)
-Cyto.b$Treatment = factor(Cyto.b$Treatment)
-Cyto.b$Landscape = factor(Cyto.b$Landscape)
-Cyto.b$Size = factor(Cyto.b$Size)
-Cyto.b$Replicate = factor(Cyto.b$Replicate)
-
-##################
-# Merge network metrics to data
-##################
-
-#############
-#...Bacteria
-Cyto.b$Degree = rep(c(RepA.degree,RepB.degree),8)
-Cyto.b$Dist = rep(c(RepA.dist,RepB.dist),8)
-Cyto.b$Diam = rep(c(RepA.diam,RepB.diam),8)
-Cyto.b$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
-
-#############
-#...Protist
-Prot.b$Degree = rep(c(RepA.degree,RepB.degree,RepC.degree,RepD.degree),8)
-Prot.b$Dist = rep(c(RepA.dist,RepB.dist,RepC.dist,RepD.dist),8)
-Prot.b$Diam = rep(c(RepA.diam,RepB.diam,RepC.diam,RepD.diam),8)
-Prot.b$Drainage = rep(c(RepA.drainage,RepB.drainage,RepC.drainage,RepD.drainage),8)
-
-##################
-# Plot effects from green to blue
-##################
-{ 
-pdf(paste0(graphpath,"Green_to_Blue.pdf"),width=8,height=8)
-
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist total abundance (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main="Day 7")
-abline(lm(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]), col="red",lwd=2)
-
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist total abundance (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main="Day 29")
-abline(lm(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
-
-plot(Prot.b$Prot.rich[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist richness (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main='Day 7')
-abline(lm(Prot.b$Prot.rich[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
-
-plot(Prot.b$Prot.rich[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist richness (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main="Day 29")
-abline(lm(Prot.b$Prot.rich[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
-
-plot(Cyto$count.ml[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Bacteria density (ind/mL) (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main = "Day 7")
-abline(lm(Cyto$count.ml[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
-
-plot(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Bacteria density (ind/mL) (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)", main="Day 29")
-abline(lm(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
-
-dev.off()
-}
-
 
 ##################
 # Statistics
@@ -732,23 +827,7 @@ summary(Mod6)$tTable
 #           Green Landscape only           #
 #..........................................#
 
-#...Extract green landscapes
-selg = c("Green")
-Cyto.g = Cyto[Cyto$Landscape %in% selg,]
 
-#Extract network metrics of the connected blue landscapes
-
-patch.size.blue = as.numeric(as.character(Cyto$Size[which(Cyto$Date !="20160502" & Cyto$Landscape=="Blue")]))
-
-#...Fix structure and drop unused levels
-Cyto.g$Date = as.numeric(Cyto.g$Date)
-Cyto.g$Label = factor(Cyto.g$Label)
-Cyto.g$ID_TUBE = factor(Cyto.g$ID_TUBE)
-Cyto.g$Treatment = factor(Cyto.g$Treatment)
-Cyto.g$Landscape = factor(Cyto.g$Landscape)
-Cyto.g$Size = factor(Cyto.g$Size)
-Cyto.g$Replicate = factor(Cyto.g$Replicate)
-str(Cyto.g)
 #...Stat
 
 with(Cyto.g,plot(density(count.ml)))
@@ -770,108 +849,12 @@ mod1.3.4 = with(Cyto.g,update(mod1.3.3, ~. - Treatment:patch.size.blue))
 summary(mod1.3.4)$tTable
 
 
-##################
-#Plot  effects from Blue to Green
-##################
 
-{ 
-
-pdf(paste0(graphpath,"Blue_to_Green.pdf"),width=8,height=8)
-
-#Effect of patch size in blue-connected on green-connected bacteria
-#day 7
-lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")],
-            xlab="Patch size (blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",
-            log="y",main="day 7",col="darkgreen")#ylim=c(5500,65000000)
-
-lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            col="blue",xlab="Patch size (blue-connected)",ylab="Protist abundance/bacteria density (blue-connected) - LOG",
-            ylim=c(5500,65000000),log="y",pch=17,main="Day 7")
-par(new=T)
-lineplot.CI(Prot.b$Size[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")],
-            col="blue",xlab="",ylab="",ylim=c(5500,65000000),log="y",pch=16)
-
-#day 29
-lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")],
-            xlab="Patch size (blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",
-            log="y",col="darkgreen",main="day 29")#ylim=c(5500,65000000)
-
-lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            col="blue",xlab="Patch size (blue-connected)",ylab="Protist abundance/bacteria density (blue-connected) - LOG",
-            ylim=c(1400,70000000),log="y",main ="day 29",pch=17)
-par(new=T)
-lineplot.CI(Prot.b$Size[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))],
-            Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")],
-            col="blue",xlab="",ylab="",ylim=c(1400,70000000),log="y",pch=16)
-
-
-
-#Effect of closeness in blue-connected on green-connected bacteria
-
-#day 7
-plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-     ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=16,col="darkgreen",xlab="Closeness (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 7")
-abline(lm(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-          ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
-       col="green",lwd=2)
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
-     ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=17,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
-# plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")] 
-#      ~ Prot.b$Diam[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-#      pch=16,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
-
-#day 29
-plot(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-     ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=16,col="darkgreen",xlab="Closeness (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 29")
-abline(lm(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-          ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
-       col="green",lwd=2)
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
-     ~ Prot.b$Diam[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=17,col="blue",xlab="Closeness (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 29")
-
-#Effect of distance to outlet in blue-connected on green-connected bacteria
-
-#day 7
-plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-     ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=16,col="darkgreen",xlab="Distance to outlet (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 7")
-abline(lm(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-          ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
-       col="green",lwd=2)
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
-     ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=17,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
-# plot(Cyto$count.ml[which(Cyto$day==7 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")] 
-#      ~ Prot.b$Dist[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-#      pch=16,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 7")
-
-#day 29
-plot(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-     ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=16,col="darkgreen",xlab="Distance to outlet (Blue-connected)",ylab="Bacteria density (ind/mL) (Green connected)",main="Day 29")
-abline(lm(Cyto$count.ml[which(Cyto$day==29 & Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")] 
-          ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))]),
-       col="green",lwd=2)
-plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] 
-     ~ Prot.b$Dist[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))], 
-     pch=17,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 29")
-
-dev.off()
-}
 
 #Look at all replicates on the last sampling day
 patch.size = Cyto2$Size[which(Cyto2$Date=="20160531" & Cyto2$Landscape=="Blue" & Cyto2$Treatment=="Connected")]
 with(Cyto2[Cyto2$Date=="20160531" & Cyto2$Treatment=="Connected" & Cyto2$Landscape=="Green",],lineplot.CI(patch.size,count.ml,Treatment))
 
 
-
+}
 
