@@ -5,7 +5,7 @@
 #..........................................................................................................................................#
 #... Collaborators: Eric Harvey, Isabelle Gounand, Emanuel Fronhofer, Florian Altermatt                                                    #
 #... Author of the script: Eric Harvey                                                                                                     #
-#... Date latest modifications: 2017-01-24                                                                                             #                                                                       #
+#... Contact: eric.harvey@eawag.ch                                                                                           #                                                                       #
 #..........................................................................................................................................#
 
 #########################################################################
@@ -63,7 +63,7 @@ Cyto = Cyto[Cyto$Treatment %in% sel.treatment,] #Drop "monocultures"
 ##################
 Prot.b$date = with(Prot.b,revalue(date, c("16-05-02"="20160502", "16-05-23"="20160523","16-05-31"="20160531","5/17/2016"="20160517","5/9/2016"="20160509")))
 Prot.b$date = factor(Prot.b$date,levels=c("20160502","20160509","20160517","20160523","20160531"))
-Prob.b = Prot.b[order(Prot.b$date),]
+Prot.b = Prot.b[order(Prot.b$date),]
 Prot.b$day = c(rep(0,30),rep(7,302),rep(15,302),rep(21,302),rep(29,302))
 
 
@@ -120,6 +120,8 @@ str(Prot.b)
 #'data.frame':	1216 obs. of  31 variables:
 row.names(Prot.b) = 1:1216 #Same number of rows with Cyto but very different data structure - WARNING: do not merge! (Protist data contains only Blue treatments for each replicate ABCD, Cyto data contains only replicate AB for both Blue and Green treatments )
 
+}
+
 ##################
 #Calculate protist TOTAL abundance per microcosm (as opposed to density per volume)
 ##################
@@ -134,10 +136,8 @@ Prot.b$Tet.all = Prot.b$Tet.ul*Prot.b$Size*1000
 Prot.b$Other.all = Prot.b$Other.ul*Prot.b$Size*1000
 Prot.b$bioarea.all = Prot.b$bioarea_per_ul*Prot.b$Size*1000
 
-Prot.b$Tet.all[Prot.b$day==0 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"]
-#[1] 6127.326 6165.698 7121.512 6758.721 5677.326 4690.116 8277.907 5248.256}
-#Now we have estimated initial abundances for each patch size for day 0
- }
+Prot.b$Tet.all[Prot.b$day==7 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"]
+# [1]  830.23255 1196.51163 1304.65116  165.69767    0.00000  231.97675  568.60465  436.04651  559.88372
 
 
 ##################
@@ -291,16 +291,6 @@ text(MDS.mod1, display="species", col="black",cex=0.5)
 dev.off()
 }
 
-##################
-# Spatially explicit difference between connected and isolated 
-##################
-
-# HERE 
-
-
-
-
-
 
 ##################
 # Network figures
@@ -411,10 +401,9 @@ for(i in 1:nlevels(Prot.b$date)) {
 }}
 
 
-#########################################################################
-################# MAIN ANALYSES
-#########################################################################
-
+##################
+# Clean the environment before going further
+#################
 #...Clean the environment 
 remove(lala);remove(lala2);remove(lala3);rm(sel.date);rm(sel.rep);rm(sel.treatment);rm(col.p)
 remove(Green);remove(Green.m);remove(RepA);remove(RepA.m);remove(RepB);remove(RepB.m);remove(RepC);remove(RepC.m);remove(RepD);remove(RepD.m)
@@ -431,12 +420,181 @@ Prot.b$date = factor(Prot.b$date)
 Cyto = Cyto[Cyto$Date %in% sel.date,]
 Cyto$Date = factor(Cyto$Date)
 
+
+##################
+# Log Response Ratio
+##################
+{ 
+
+
+#...Extract blue landscape only for bacteria
+selb = c("Blue")
+Cyto.b = Cyto[Cyto$Landscape %in% selb,]
+
+#...Remove moncultures from protist data
+sel.treat = c("Connected","Isolated")
+Prot.b = Prot.b[which(Prot.b$Treatment %in% sel.treat),]
+Prot.b=droplevels(Prot.b)
+
+#...merge network metrics to data
+#.....Protist
+Prot.b$Degree = rep(c(RepA.degree,RepB.degree,RepC.degree,RepD.degree),8)
+Prot.b$Dist = rep(c(RepA.dist,RepB.dist,RepC.dist,RepD.dist),8)
+Prot.b$Diam = rep(c(RepA.diam,RepB.diam,RepC.diam,RepD.diam),8)
+Prot.b$Drainage = rep(c(RepA.drainage,RepB.drainage,RepC.drainage,RepD.drainage),8)
+#.....Bacteria
+Cyto.b$Degree = rep(c(RepA.degree,RepB.degree),8)
+Cyto.b$Dist = rep(c(RepA.dist,RepB.dist),8)
+Cyto.b$Diam = rep(c(RepA.diam,RepB.diam),8)
+Cyto.b$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
+
+#...Fix some variables
+Prot.b$Size = as.numeric(as.character(Prot.b$Size))
+Cyto.b$Size = as.numeric(as.character(Cyto.b$Size))
+
+#...Separate connected and isolated landscapes
+#.......Connected
+#..........Protist
+Prot.b.connected = Prot.b[which(Prot.b$Treatment=="Connected"),]
+Prot.b.connected$indiv_per_ul[497] = 1
+Prot.b.connected$Prot.rich[497] = 1
+Prot.b.connected$indiv_per_ul[467] = 1
+Prot.b.connected$Prot.rich[467] = 1
+#..........Bacteria
+Cyto.b.connected = Cyto.b[which(Cyto.b$Treatment=="Connected"),]
+#.......Isolated
+#..........Protist
+Prot.b.isolated = Prot.b[which(Prot.b$Treatment=="Isolated"),]
+Prot.b.isolated$indiv_per_ul[467] = 1
+Prot.b.isolated$Prot.rich[467] = 1
+Prot.b.isolated$indiv_per_ul[497] = 1
+Prot.b.isolated$Prot.rich[497] = 1
+#..........Bacteria
+Cyto.b.isolated = Cyto.b[which(Cyto.b$Treatment=="Isolated"),]
+
+#...Calculate log Response Ratio
+var.prot.rich = log(Prot.b.connected$Prot.rich/Prot.b.isolated$Prot.rich)
+var.prot.ab = log(Prot.b.connected$indiv_per_ul/Prot.b.isolated$indiv_per_ul)
+var.bact.ab = log(Cyto.b.connected$count.ml/Cyto.b.isolated$count.ml)
+
+#Calculate 95% CI for each factor levels of interest
+err.rich.size = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45)])/sqrt(44))
+err.rich.day = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==29)])/sqrt(144))
+
+err.ab.size = c(qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==45)])/sqrt(44))
+err.ab.day = c(qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==29)])/sqrt(144))
+
+err.bact.size = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==45)])/sqrt(44))
+err.bact.day = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==29)])/sqrt(144))
+
+#Plot Figures
+ 
+library(Hmisc)
+
+pdf(paste(graphpath,"LRR.pdf"),width=8,height=8)
+
+#...Patch size
+#Species richness
+plot(Prot.b.isolated$Size,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
+y = tapply(var.prot.rich,Prot.b.isolated$Size,mean)
+ymax = y + err.rich.size
+yminus = y - err.rich.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#Density per ul 
+plot(Prot.b.isolated$Size,var.prot.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Protist density")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
+y = tapply(var.prot.ab,Prot.b.isolated$Size,mean)
+ymax = y + err.ab.size
+yminus = y - err.ab.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#Bacteria density 
+plot(Cyto.b.isolated$Size,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Cyto.b.isolated$Size)))
+y = tapply(var.bact.ab,Cyto.b.isolated$Size,mean)
+ymax = y + err.bact.size
+yminus = y - err.bact.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#...Time
+#Species richness
+plot(Prot.b.isolated$day,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness")
+axis(side = 1, at =c(7,15,21,29))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$day)))
+y = tapply(var.prot.rich,Prot.b.isolated$day,mean)
+ymax = y + err.rich.day
+yminus = y - err.rich.day
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#Density per ul 
+plot(Prot.b.isolated$day,var.prot.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Protist density")
+axis(side = 1, at =c(7,15,21,29))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$day)))
+y = tapply(var.prot.ab,Prot.b.isolated$day,mean)
+ymax = y + err.ab.day
+yminus = y - err.ab.day
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#Bacteria density 
+plot(Cyto.b.isolated$day,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density")
+axis(side = 1, at =c(7,15,21,29))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Cyto.b.isolated$day)))
+y = tapply(var.bact.ab,Cyto.b.isolated$day,mean)
+ymax = y + err.bact.day
+yminus = y - err.bact.day
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+
+#Patch size at day 7
+err.rich.size.day7 = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5 & Prot.b.isolated$day==7)])/sqrt(85),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13 & Prot.b.isolated$day==7)])/sqrt(34),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5 & Prot.b.isolated$day==7)])/sqrt(14),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45 & Prot.b.isolated$day==7)])/sqrt(11))
+plot(Prot.b.isolated$Size[which(Prot.b.isolated$day==7)],var.prot.rich[which(Prot.b.isolated$day==7)],type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness at day 7")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
+y = tapply(var.prot.rich[which(Prot.b.isolated$day==7)],Prot.b.isolated$Size[which(Prot.b.isolated$day==7)],mean)
+ymax = y + err.rich.size
+yminus = y - err.rich.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+#Patch size at day 29
+err.rich.size.day29 = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5 & Prot.b.isolated$day==29)])/sqrt(85),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13 & Prot.b.isolated$day==29)])/sqrt(34),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5 & Prot.b.isolated$day==29)])/sqrt(14),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45 & Prot.b.isolated$day==29)])/sqrt(11))
+plot(Prot.b.isolated$Size[which(Prot.b.isolated$day==29)],var.prot.rich[which(Prot.b.isolated$day==29)],type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness at day 29")
+axis(side = 1, at =c(7.5,13,22.5,45))
+abline(h=0,lwd=1,col="gray")
+x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
+y = tapply(var.prot.rich[which(Prot.b.isolated$day==29)],Prot.b.isolated$Size[which(Prot.b.isolated$day==29)],mean)
+ymax = y + err.rich.size
+yminus = y - err.rich.size
+errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+
+
+dev.off()
+detach("package:Hmisc") 
+
+}
+
+#########################################################################
+################# MAIN ANALYSES
+#########################################################################
+
+
 #..........................................#
 #           Blue-green interactions        #
 #..........................................#
 
 #..Identify probability distribution
-
+{ 
 with(Cyto,plot(density(count.ml)))
 with(Cyto,plot(density(log(count.ml))))
 summary(Cyto$count.ml)
@@ -452,7 +610,9 @@ poisson <- with(Cyto,fitdistr(count.ml, "Poisson"))
 with(Cyto,qqp(count.ml, "pois",poisson$estimate))
 gamma = with(Cyto,fitdistr(count.ml, "gamma"))
 with(Cyto,qqp(Count, "gamma", shape = gamma$estimate[[1]], rate = gamma$estimate[[2]]))
+}
 
+#Run model
 library(nlme)
 Mod = lme(log(Count) ~ Treatment*Landscape*as.numeric(Date), ~ Date|Replicate,data=Cyto,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod)$tTable
@@ -479,7 +639,6 @@ Cyto.b$Landscape = factor(Cyto.b$Landscape)
 Cyto.b$Size = factor(Cyto.b$Size)
 Cyto.b$Replicate = factor(Cyto.b$Replicate)
 
-
 ##################
 # Merge network metrics to data
 ##################
@@ -498,12 +657,10 @@ Prot.b$Dist = rep(c(RepA.dist,RepB.dist,RepC.dist,RepD.dist),8)
 Prot.b$Diam = rep(c(RepA.diam,RepB.diam,RepC.diam,RepD.diam),8)
 Prot.b$Drainage = rep(c(RepA.drainage,RepB.drainage,RepC.drainage,RepD.drainage),8)
 
-
-
 ##################
-# Effect from green to blue
+# Plot effects from green to blue
 ##################
-
+{ 
 pdf(paste0(graphpath,"Green_to_Blue.pdf"),width=8,height=8)
 
 plot(Prot.b$Prot.tot.ab[which(Prot.b$day==7 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==7 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")],pch=16,ylab="Protist total abundance (Blue-connected)",xlab="Bacteria density (ind/mL)(Green-connected)",main="Day 7")
@@ -525,7 +682,7 @@ plot(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b
 abline(lm(Cyto$count.ml[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & Prot.b$Replicate %in% c("A","B"))] ~ Cyto$count.ml[which(Cyto$day==29 & Cyto$Landscape=="Green" & Cyto$Treatment=="Connected")]),col="red",lwd=2)
 
 dev.off()
-
+}
 
 
 ##################
@@ -583,7 +740,6 @@ Cyto.g = Cyto[Cyto$Landscape %in% selg,]
 
 patch.size.blue = as.numeric(as.character(Cyto$Size[which(Cyto$Date !="20160502" & Cyto$Landscape=="Blue")]))
 
-
 #...Fix structure and drop unused levels
 Cyto.g$Date = as.numeric(Cyto.g$Date)
 Cyto.g$Label = factor(Cyto.g$Label)
@@ -615,8 +771,10 @@ summary(mod1.3.4)$tTable
 
 
 ##################
-# Effect from Blue to Green
+#Plot  effects from Blue to Green
 ##################
+
+{ 
 
 pdf(paste0(graphpath,"Blue_to_Green.pdf"),width=8,height=8)
 
@@ -708,10 +866,12 @@ plot(Prot.b$Prot.tot.ab[which(Prot.b$day==29 & Prot.b$Treatment=="Connected" & P
      pch=17,col="blue",xlab="Distance to outlet (Blue-connected)",ylab="Protist abundance (blue-connected)",main = "Day 29")
 
 dev.off()
+}
 
 #Look at all replicates on the last sampling day
 patch.size = Cyto2$Size[which(Cyto2$Date=="20160531" & Cyto2$Landscape=="Blue" & Cyto2$Treatment=="Connected")]
 with(Cyto2[Cyto2$Date=="20160531" & Cyto2$Treatment=="Connected" & Cyto2$Landscape=="Green",],lineplot.CI(patch.size,count.ml,Treatment))
+
 
 
 
