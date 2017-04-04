@@ -499,7 +499,6 @@ Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
 ##################
 #Plot  effects from Blue to Green
 ##################
-
 { 
   
   pdf(paste0(graphpath,"Blue_to_Green.pdf"),width=8,height=8)
@@ -598,9 +597,9 @@ Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
 ##################
 # Plot Log Response Ratio
 ##################
-{ 
-
+library(Hmisc)
 #...Separate connected and isolated landscapes
+{ 
 #.......Connected
 #..........Protist
 Prot.b.connected = Prot.b[which(Prot.b$Treatment=="Connected"),]
@@ -609,6 +608,7 @@ Prot.b.connected$Prot.rich[497] = 1
 Prot.b.connected$indiv_per_ul[467] = 1
 Prot.b.connected$Prot.rich[467] = 1
 #..........Bacteria
+Cyto.connected =  Cyto[which(Cyto$Treatment=="Connected"),]
 Cyto.b.connected = Cyto.b[which(Cyto.b$Treatment=="Connected"),]
 Cyto.g.connected = Cyto.g[which(Cyto.g$Treatment=="Connected"),]
 #.......Isolated
@@ -619,142 +619,78 @@ Prot.b.isolated$Prot.rich[467] = 1
 Prot.b.isolated$indiv_per_ul[497] = 1
 Prot.b.isolated$Prot.rich[497] = 1
 #..........Bacteria
+Cyto.isolated =  Cyto[which(Cyto$Treatment=="Isolated"),]
 Cyto.b.isolated = Cyto.b[which(Cyto.b$Treatment=="Isolated"),]
 Cyto.g.isolated = Cyto.g[which(Cyto.g$Treatment=="Isolated"),]
+#........Merge bacteria blue with protist blue (will be easier to build figures below)
+Prot.b.connected$bact.count.ml = Cyto.b.connected$count.ml
+Prot.b.isolated$bact.count.ml = Cyto.b.isolated$count.ml
+}
 
-#...Calculate log Response Ratio
-var.prot.rich = log(Prot.b.connected$Prot.rich/Prot.b.isolated$Prot.rich)
-var.prot.ab = log(Prot.b.connected$indiv_per_ul/Prot.b.isolated$indiv_per_ul)
-var.bact.ab = log(Cyto.b.connected$count.ml/Cyto.b.isolated$count.ml)
-var.bact.green = log(Cyto.g.connected$count.ml/Cyto.g.isolated$count.ml)
-
-#Calculate 95% CI for each factor levels of interest
-err.rich.size = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45)])/sqrt(44))
-err.rich.day = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$day==29)])/sqrt(144))
-
-err.ab.size = c(qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$Size==45)])/sqrt(44))
-err.ab.day = c(qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.prot.ab[which(Prot.b.isolated$day==29)])/sqrt(144))
-
-err.bact.size = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$Size==45)])/sqrt(44))
-err.bact.day = c(qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.bact.ab[which(Cyto.b.isolated$day==29)])/sqrt(144))
-
-err.bact.green.size = c(qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==7.5)])/sqrt(340),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==13)])/sqrt(136),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==22.5)])/sqrt(56),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$Size==45)])/sqrt(44))
-err.bact.green.day = c(qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==7)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==15)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==21)])/sqrt(144),qnorm(0.975)*sd(var.bact.green[which(Cyto.g.isolated$day==29)])/sqrt(144))
-
-#Plot Figures
- 
-library(Hmisc)
-
-pdf(paste(graphpath,"LRR.pdf"),width=8,height=8)
-
-#...Patch size
-#Species richness
-plot(Prot.b.isolated$Size,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Protist richness")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
-y = tapply(var.prot.rich,Prot.b.isolated$Size,mean)
-ymax = y + err.rich.size
-yminus = y - err.rich.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Density per ul 
-plot(Prot.b.isolated$Size,var.prot.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Protist density")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
-y = tapply(var.prot.ab,Prot.b.isolated$Size,mean)
-ymax = y + err.ab.size
-yminus = y - err.ab.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Bacteria density (Blue) 
-plot(Cyto.b.isolated$Size,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Blue)")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Cyto.b.isolated$Size)))
-y = tapply(var.bact.ab,Cyto.b.isolated$Size,mean)
-ymax = y + err.bact.size
-yminus = y - err.bact.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Bacteria density (Green) 
-plot(Cyto.g.isolated$Size,var.bact.green,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Green)")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Cyto.g.isolated$Size)))
-y = tapply(var.bact.green,Cyto.g.isolated$Size,mean)
-ymax = y + err.bact.green.size
-yminus = y - err.bact.green.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#...Time
-#Species richness
-plot(Prot.b.isolated$day,var.prot.rich,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Protist richness")
-axis(side = 1, at =c(7,15,21,29))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$day)))
-y = tapply(var.prot.rich,Prot.b.isolated$day,mean)
-ymax = y + err.rich.day
-yminus = y - err.rich.day
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Density per ul 
-plot(Prot.b.isolated$day,var.prot.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Protist density")
-axis(side = 1, at =c(7,15,21,29))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$day)))
-y = tapply(var.prot.ab,Prot.b.isolated$day,mean)
-ymax = y + err.ab.day
-yminus = y - err.ab.day
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Bacteria density 
-plot(Cyto.b.isolated$day,var.bact.ab,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Blue)")
-axis(side = 1, at =c(7,15,21,29))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Cyto.b.isolated$day)))
-y = tapply(var.bact.ab,Cyto.b.isolated$day,mean)
-ymax = y + err.bact.day
-yminus = y - err.bact.day
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Bacteria density 
-plot(Cyto.g.isolated$day,var.bact.green,type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n",main="Bacteria density (Green)")
-axis(side = 1, at =c(7,15,21,29))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Cyto.g.isolated$day)))
-y = tapply(var.bact.green,Cyto.g.isolated$day,mean)
-ymax = y + err.bact.green.day
-yminus = y - err.bact.green.day
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Patch size at day 7
-err.rich.size.day7 = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5 & Prot.b.isolated$day==7)])/sqrt(85),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13 & Prot.b.isolated$day==7)])/sqrt(34),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5 & Prot.b.isolated$day==7)])/sqrt(14),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45 & Prot.b.isolated$day==7)])/sqrt(11))
-plot(Prot.b.isolated$Size[which(Prot.b.isolated$day==7)],var.prot.rich[which(Prot.b.isolated$day==7)],type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness at day 7")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
-y = tapply(var.prot.rich[which(Prot.b.isolated$day==7)],Prot.b.isolated$Size[which(Prot.b.isolated$day==7)],mean)
-ymax = y + err.rich.size
-yminus = y - err.rich.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
-#Patch size at day 29
-err.rich.size.day29 = c(qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==7.5 & Prot.b.isolated$day==29)])/sqrt(85),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==13 & Prot.b.isolated$day==29)])/sqrt(34),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==22.5 & Prot.b.isolated$day==29)])/sqrt(14),qnorm(0.975)*sd(var.prot.rich[which(Prot.b.isolated$Size==45 & Prot.b.isolated$day==29)])/sqrt(11))
-plot(Prot.b.isolated$Size[which(Prot.b.isolated$day==29)],var.prot.rich[which(Prot.b.isolated$day==29)],type="n",ylab="Effect size",ylim=c(-0.5,0.5),xaxt="n", main="Species richness at day 29")
-axis(side = 1, at =c(7.5,13,22.5,45))
-abline(h=0,lwd=1,col="gray")
-x = as.numeric(levels(as.factor(Prot.b.isolated$Size)))
-y = tapply(var.prot.rich[which(Prot.b.isolated$day==29)],Prot.b.isolated$Size[which(Prot.b.isolated$day==29)],mean)
-ymax = y + err.rich.size
-yminus = y - err.rich.size
-errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-
+#LRR figures for BLUE landscapes
+{ 
+pdf(paste(graphpath,"LRR_BLUE.pdf"),width=8,height=8)
+y.var = c("Prot.rich","indiv_per_ul","bact.count.ml")
+x.var = c("Size","day")
+for(i in 1:length(x.var)){
+  for(j in 1:length(y.var)) { 
+  #...Calculate log response ratio
+  LRR = log(Prot.b.connected[,y.var[j]]/Prot.b.isolated[,y.var[j]])
+  #...Calculate 95% CI for each factor levels 
+  CI = 0 
+  for(g in 1:length(levels(as.factor(Prot.b.connected[,x.var[i]])))){ 
+  CI[g]  = qnorm(0.975)*sd(LRR[which(Prot.b.connected[,x.var[i]]==levels(as.factor(Prot.b.connected[,x.var[i]]))[g])])/sqrt(length(LRR[which(Prot.b.connected[,x.var[i]]==levels(as.factor(Prot.b.connected[,x.var[i]]))[g])]))
+  }
+  #...Plot figures
+  plot(Prot.b.isolated[,x.var[i]],LRR,type="n",ylab="LRR (ln[connected/isolated])",xlab=paste(x.var[i]),ylim=c(-0.5,0.5),xaxt="n",main=y.var[j])
+  axis(side = 1, at =levels(as.factor(Prot.b.connected[,x.var[i]])))
+  abline(h=0,lwd=1,col="gray")
+  x = as.numeric(levels(as.factor(Prot.b.isolated[,x.var[i]])))
+  y = tapply(LRR,Prot.b.isolated[,x.var[i]],mean)
+  ymax = y + CI
+  yminus = y - CI
+  errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+  
+  
+  }
+}
 dev.off()
-detach("package:Hmisc") 
+}
+
+#LRR figures for GREEN landscapes
+{ 
+pdf(paste(graphpath,"LRR_GREEN.pdf"),width=8,height=8)
+y.var = c("count.ml")
+x.var = c("Size","day")
+for(i in 1:length(x.var)){
+  for(j in 1:length(y.var)) { 
+    #...Calculate log response ratio
+    LRR = log(Cyto.g.connected[,y.var[j]]/Cyto.g.isolated[,y.var[j]])
+    #...Calculate 95% CI for each factor levels 
+    CI = 0 
+    for(g in 1:length(levels(as.factor(Cyto.g.connected[,x.var[i]])))){ 
+      CI[g]  = qnorm(0.975)*sd(LRR[which(Cyto.g.connected[,x.var[i]]==levels(as.factor(Cyto.g.connected[,x.var[i]]))[g])])/sqrt(length(LRR[which(Cyto.g.connected[,x.var[i]]==levels(as.factor(Cyto.g.connected[,x.var[i]]))[g])]))
+    }
+    #...Plot figures
+    plot(Cyto.g.isolated[,x.var[i]],LRR,type="n",ylab="LRR (ln[connected/isolated])",xlab=paste(x.var[i]),ylim=c(-0.5,0.5),xaxt="n",main=y.var[j])
+    axis(side = 1, at =levels(as.factor(Cyto.g.connected[,x.var[i]])))
+    abline(h=0,lwd=1,col="gray")
+    x = as.numeric(levels(as.factor(Cyto.g.isolated[,x.var[i]])))
+    y = tapply(LRR,Cyto.g.isolated[,x.var[i]],mean)
+    ymax = y + CI
+    yminus = y - CI
+    errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
+    
+    
+  }
+}
+dev.off()
 
 }
+
+detach("package:Hmisc") 
+
+
 
 
 library(nlme)
@@ -765,6 +701,13 @@ summary(Mod)$tTable
 Mod2 = lme(var.bact.green ~ as.factor(Size)+day, ~ as.factor(Date)|Replicate,data=Cyto.g.isolated,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 hist(Mod2$residuals,breaks=50)
 summary(Mod2)$tTable
+
+
+lineplot.CI(Cyto.b.connected$Size,Cyto.b.connected$count.ml)
+lineplot.CI(Prot.b.connected$Size,Prot.b.connected$Prot.rich)
+lineplot.CI(Prot.b.connected$Size,Prot.b.connected$indiv_per_ul)
+lineplot.CI(Cyto.g.isolated$Size,Cyto.g.isolated$count.ml)
+lineplot.CI(Cyto.g.connected$Size,Cyto.g.connected$count.ml)
 
 
 #########################################################################
