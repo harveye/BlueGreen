@@ -50,18 +50,13 @@ mini=0.001
 prot$abundance = apply(prot[,c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")],1,sum)*1000
 prot$abundance = ifelse(prot$abundance == 0,mini,prot$abundance)
 
-#... set the minimum in individual species abundance
-prot$Rot = ifelse(prot$Rot == 0,mini,prot$Rot*1000); prot$Spi = ifelse(prot$Spi == 0,mini,prot$Spi*1000);
-prot$Ble = ifelse(prot$Ble == 0,mini,prot$Ble*1000);prot$Pca = ifelse(prot$Pca == 0,mini,prot$Pca*1000);
-prot$Col = ifelse(prot$Col == 0,mini,prot$Col*1000);prot$Chi = ifelse(prot$Chi == 0,mini,prot$Chi*1000);
-prot$Tet = ifelse(prot$Tet == 0,mini,prot$Tet*1000);prot$Other = ifelse(prot$Other == 0,mini,prot$Other*1000);
-species = c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
 
 #... add column for bioarea per ml
 prot$bioarea = prot$bioarea_per_ul*1000
 prot$bioarea = ifelse(prot$bioarea == 0,mini,prot$bioarea)
 
 #... add column for richness
+species = c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
 prot$richness = apply(prot[,species]>0,1,sum)
 prot$richness = ifelse(prot$richness == 0,mini,prot$richness)
 
@@ -74,6 +69,13 @@ dates = c("5/9/2016",  "5/17/2016", "16-05-23",  "16-05-31" )
 sizes = c(7.5,13,22.5,45)
 isolated = 217:360 #Labels of isolated patches
 connected = 361:504 #Labels of connected patches
+
+#... set the minimum in individual species abundance
+prot$Rot = ifelse(prot$Rot == 0,mini,prot$Rot*1000); prot$Spi = ifelse(prot$Spi == 0,mini,prot$Spi*1000);
+prot$Ble = ifelse(prot$Ble == 0,mini,prot$Ble*1000);prot$Pca = ifelse(prot$Pca == 0,mini,prot$Pca*1000);
+prot$Col = ifelse(prot$Col == 0,mini,prot$Col*1000);prot$Chi = ifelse(prot$Chi == 0,mini,prot$Chi*1000);
+prot$Tet = ifelse(prot$Tet == 0,mini,prot$Tet*1000);prot$Other = ifelse(prot$Other == 0,mini,prot$Other*1000);
+
 
 #... Select the data
 x=subset(prot,date %in% dates & Label %in% c(isolated,connected))[,c("date","Label","Size","Replicate","abundance","bioarea","richness","simpson",species)]
@@ -150,7 +152,7 @@ dev.off()
 pdf("Effect_size_Protists_byspecies.pdf")
 ES_species= c("logRot","logSpi","logBle","logPca","logCol","logChi","logTet","logOther")
 d=logES_species_tot
-plot(NA,xlim=c(0.5,length(species)+0.5),ylim=c(-1,1),main = "Protist species",xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+plot(NA,xlim=c(0.5,length(species)+0.5),ylim=c(-2,2),main = "Protist species",xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
 axis(1,at=1:length(species),labels=species,las=2)
 abline(h=0,lty=3)
 for(k in 1:length(species)){
@@ -178,18 +180,17 @@ x = subset(cyto,Treatment %in% c("Isolated","Connected") & Date!=20160502 &Repli
 days = c(7,15,21,29)
 sizes = c(7.5,13,22.5,45)
 
-(unique(subset(xg,Treatment == "Connected" & Replicate == "B")$Label))
 isolated_green = 1:72
 connected_green = 73:144
 
 logES_Blue = logES_Green = vector(mode="list",length=4);
 
-for(i in 1:length(dates)){
-  x_is_blue=subset(x,day==dates[i] & Label %in% isolated)
-  x_con_blue=subset(x,day==dates[i] & Label %in% connected)
+for(i in 1:length(days)){
+  x_is_blue=subset(x,day==days[i] & Label %in% isolated)
+  x_con_blue=subset(x,day==days[i] & Label %in% connected)
   logES_Blue[[i]] = cbind(x_is_blue[,c("day","Size","Replicate","density")],logES=log(x_con_blue$density/x_is_blue$density))
-  x_is_green=subset(x,day==dates[i] & Label %in% isolated_green)
-  x_con_green=subset(x,day==dates[i] & Label %in% connected_green)
+  x_is_green=subset(x,day==days[i] & Label %in% isolated_green)
+  x_con_green=subset(x,day==days[i] & Label %in% connected_green)
   logES_Green[[i]] = cbind(x_is_green[,c("day","Size","Replicate","density")],logES=log(x_con_green$density/x_is_green$density))
 }
 
@@ -203,7 +204,7 @@ pdf("Effect_size_Bacteria.pdf")
 
   #... Plot over days for green landscapes
   d=logES_Green_tot
-  plot(NA,xlim=c(0.5,4.5),ylim=c(-1,1),main = "Bacteria in Green",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Green",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
   axis(1,at=1:4,labels=days)
   abline(h=0,lty=3)
   for(k in 1:length(days)){
@@ -216,7 +217,7 @@ pdf("Effect_size_Bacteria.pdf")
   
   #... Plot over days for blue landscapes
   d=logES_Blue_tot
-  plot(NA,xlim=c(0.5,4.5),ylim=c(-1,1),main = "Bacteria in Blue",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Blue",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
   axis(1,at=1:4,labels=days)
   abline(h=0,lty=3)
   for(k in 1:length(days)){
@@ -228,7 +229,7 @@ pdf("Effect_size_Bacteria.pdf")
   }
   
   #... Plot by patch size for blue landscapes
-  plot(NA,xlim=c(0.5,4.5),ylim=c(-1,1),main = "Bacteria in Blue",xlab="Patch Size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Blue",xlab="Patch Size",ylab="ln(patch connected / patch isolated)",xaxt="n")
   axis(1,at=1:4,labels=sizes)
   abline(h=0,lty=3)
   for(k in 1:length(sizes)){
@@ -240,8 +241,8 @@ pdf("Effect_size_Bacteria.pdf")
   }
   
   #... Interactions day x size blue landscapes
-  for(j in 1:length(dates)){
-    d=subset(logES_Blue_tot,day==dates[j])
+  for(j in 1:length(days)){
+    d=subset(logES_Blue_tot,day==days[j])
     plot(NA,xlim=c(0.5,4.5),ylim=range(d$logES),main = paste("Bacteria in Blue",dates[j]),xlab="Patch Size",ylab="ln(patch connected / patch isolated)",xaxt="n")
     axis(1,at=1:4,labels=sizes)
     abline(h=0,lty=3)
