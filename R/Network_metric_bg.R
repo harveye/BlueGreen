@@ -116,12 +116,13 @@ RepB.dist = distances(RepB.g)[36,]
 RepC.dist = distances(RepC.g)[36,]
 RepD.dist = distances(RepD.g)[36,]
 
-#...Ecological diameter (inverse of the closeness centrality of each community)
+#...Closeness centrality 
 
 RepA.diam = closeness(RepA.g)
 RepB.diam = closeness(RepB.g)
 RepC.diam = closeness(RepC.g)
 RepD.diam = closeness(RepD.g)
+
 
 #...Drainage volume
 RepA.drainage = 

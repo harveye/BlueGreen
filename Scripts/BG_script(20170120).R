@@ -18,232 +18,216 @@
 rm(list=ls())
 # search()
 # detach(pos=3)
-
+getwd()
 ##################
 #Directory paths 
 ##################
-datapath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Data/"
+to.data = "./Data/"
 to.script = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Scripts/"
-graphpath = "~/Documents/Research/Eawag/Projects/8.Blue-Green/4.Results/"
+to.output = "~/Documents/Research/Eawag/Projects/8.Blue-Green/4.Results/" #Outside the local Git repo
 
 ##################
 #Load packages
 ##################
-library(vegan)
-library(plyr)
-library(plotrix)
-library(sciplot)
-library(car)
-library(MASS)
+library(tidyverse)
+
+# library(vegan)
+# library(plyr)
+# library(plotrix)
+# library(sciplot)
+# library(car)
+# library(MASS)
 
 ##################
 #Load data in R environment
 ##################
-Prot.b =  read.delim(paste0(datapath,"BG_protist_data_(20170307).txt")) #Protist
-Cyto2 = read.delim(paste0(datapath,"FULL_Cyto_BlueGreen(20160816).txt")) # Bacteria
+Prot.b0 =  read_csv(paste0(to.data,"BG_protist_data_(20170307).csv")) #Protist
+Cyto0 = read_tsv(paste0(to.data,"FULL_Cyto_BlueGreen(20160816).txt")) # Bacteria
+Prot.b = Prot.b0
+Cyto = Cyto0
 
 ##################
-#Fix bacteria data structure for further exploration and analyses
+#Bacteria data
 ##################
 
-#...Arrange structure cytometry data
-Cyto2 = Cyto2[order(Cyto2$Date),]
-Cyto2$day = c(rep(0,32),rep(7,524),rep(15,524),rep(21,524),rep(29,524)) #create a new variable "day"
-Cyto2$count.ml = ((Cyto2$Count*1000)/Cyto2$Volume.uL)*1000 #convert from dens/50ul to dens/mL and then multiply by the cytometry dilution factor (1000)
-sel.rep = c("A","B") #A,B for the whole duration - ABCD only on the last day
-Cyto = Cyto2[Cyto2$Replicate %in% sel.rep,] #Extract only replicate A and B 
-sel.treatment = c("Isolated","Connected")
-Cyto = Cyto[Cyto$Treatment %in% sel.treatment,] #Drop "monocultures"
+#.Add experimental day column 
+Cyto = Cyto[order(Cyto$Date),] #make sure that data are ordered by dates
+Cyto$day = c(rep(0,32),rep(7,524),rep(15,524),rep(21,524),rep(29,524)) #create a new variable "day"
 
+#...Add a bacteria density per mL column 
+Cyto$density = ((Cyto$Count*1000)/Cyto$Volume.uL)*1000 #convert from dens/50ul to dens/mL and then multiply by the cytometry dilution factor (1000)
 
 ##################
-#Fix Protist data structure for further exploration and analyses
+#Protist data
 ##################
+
+#...Rename dates consistently (they are not)
 Prot.b$date = with(Prot.b,revalue(date, c("16-05-02"="20160502", "16-05-23"="20160523","16-05-31"="20160531","5/17/2016"="20160517","5/9/2016"="20160509")))
 Prot.b$date = factor(Prot.b$date,levels=c("20160502","20160509","20160517","20160523","20160531"))
-Prot.b = Prot.b[order(Prot.b$date),]
+
+#...Create a new variable called day
+Prot.b = Prot.b[order(Prot.b$date),] #make sure that data are ordered by dates 
 Prot.b$day = c(rep(0,30),rep(7,302),rep(15,302),rep(21,302),rep(29,302))
 
-##################
-#Aproximate initial protist total abundances per microcosm size from initial pooled cultures that were used to fill each microcosm at day 0
-#(Lines 1:30 from dataset)
-#RUN THESE LINES ONLY IF YOU WISH TO HAVE DAY0 IN THE PRELIMINARY DATA BELOW
-################### 
-{  #1.Extract and Repeat pooled cultures from Day 0 for each patch size  
+#...Add T0 to the data 
+{  
+#1.Extract and Repeat pooled cultures from Day 0 for each patch size
 #Protist
-Prot.day0 = Prot.b[rep(0:30,times=4), ]
-row.names(Prot.day0) = 1:120
+Prot.day0 = Prot.b[rep(0:16,times=4),] #so that we have each patch size for both connected and isolated patches
+row.names(Prot.day0) = 1:64
 Prot.day0$Size[1:16] = 7.5
-Prot.day0$Size[31:46] = 13
-Prot.day0$Size[61:76] = 22.5
-Prot.day0$Size[91:106] = 45
+Prot.day0$Size[17:32] = 13
+Prot.day0$Size[33:48] = 22.5
+Prot.day0$Size[49:64] = 45
 
 #Bacteria (for bacteria only pooled cultured from blue landscapes, connected and isolated, were measured [see original data] for logistic reasons, we assumed that our initial bacteria meausres are representative of the entire intial conditions for all treatments)
 #Repeat for each patch size
-Cyto.day0 = Cyto[rep(0:8,times=4),]
-row.names(Cyto.day0) = 1:32
-Cyto.day0$Size[1:8] = 7.5
-Cyto.day0$Size[9:16] = 13
-Cyto.day0$Size[17:24] = 22.5
-Cyto.day0$Size[25:32] = 45
-#Repeat for each landscape type (Blue and Green)
-Cyto.day0.green = Cyto.day0[rep(0:32,times=2),]
-row.names(Cyto.day0.green) = 1:64
-Cyto.day0.green$Landscape[33:64] = "Green"
-Cyto.day0.green$Size[Cyto.day0.green$Landscape=="Green"]=10
+Cyto.day0 = Cyto[rep(0:16,times=4),]
+row.names(Cyto.day0) = 1:64
+Cyto.day0$Size[1:16] = 7.5
+Cyto.day0$Size[17:32] = 13
+Cyto.day0$Size[33:48] = 22.5
+Cyto.day0$Size[49:64] = 45
 
-  #2.Remove Day 0 from the original dataset
+#2.Remove Day 0 pooled cultures from the original dataset but keep day 0 monoculture info
 #Protist
 sel.date = c("20160509","20160517","20160523","20160531")
-Prot.b = Prot.b[Prot.b$date %in% sel.date,] 
+Prot.b = Prot.b[which(Prot.b$date %in% sel.date | Prot.b$Landscape=="monoculture"),]
 #Bacteria
-Cyto = Cyto[Cyto$Date %in% sel.date,] 
+Cyto = Cyto[which(Cyto$Date %in% sel.date | Cyto$Landscape=="Monoculture"),]
 
-  #3. Merge the new 'Day 0' repeated for each patch size with dataset
+#3. Merge the new 'Day 0' duplicated for each patch size with dataset
 #Protist
 Prot.b = rbind(Prot.day0,Prot.b)
 str(Prot.b)
-#'data.frame':	1328 obs. of  31 variables:
+row.names(Prot.b) = 1:1286
+#data.frame':	1286 obs. of  31 variables:
 
 #Bacteria
-Cyto = rbind(Cyto.day0.green,Cyto)
+Cyto = rbind(Cyto.day0,Cyto)
 str(Cyto)
-#'data.frame':	1216 obs. of  20 variables:
-row.names(Cyto) = 1:1216
+#data.frame':	2176 obs. of  20 variables:
+row.names(Cyto) = 1:2176
 
-  #4. Remove monocultures from the Protist dataset
-sel.treatment = c("Isolated","Connected")#,"monoculture"
-Prot.b = Prot.b[Prot.b$Treatment %in% sel.treatment,] #Drop "monocultures"
-str(Prot.b)
-#'data.frame':	1216 obs. of  31 variables:
-row.names(Prot.b) = 1:1216 #Same number of rows with Cyto but very different data structure - WARNING: do not merge! (Protist data contains only Blue treatments for each replicate ABCD, Cyto data contains only replicate AB for both Blue and Green treatments )
+} 
 
+
+#...Convert species abundance per ul into abundance per ML
+species = c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
+Prot.b[,species] = Prot.b[,species]*1000
+
+#... add column for total protist abundance per mL per patch
+Prot.b$abundance = apply(Prot.b[,species],1,sum)
+
+#... add column for bioarea per ml
+Prot.b$bioarea = Prot.b$bioarea_per_ul*1000
+
+#...Calculate total protist abundance per patch (as opposed to abundance per volume [density])
+new.COL.names = c("Rot.all","Spi.all","Ble.all","Pca.all","Col.all","Chi.all","Tet.all","Other.all","bioarea.all")
+COL.names = c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other","bioarea")
+for(i in 1:length(COL.names)){
+  Prot.b[,new.COL.names[i]] = 0
+  Prot.b[,new.COL.names[i]] = Prot.b[,COL.names[i]]*Prot.b$Size
 }
 
-##################
-#Calculate protist TOTAL abundance per microcosm (as opposed to density per volume)
-##################
-colnames(Prot.b)[23:30] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul","Other.ul")
-Prot.b$Rot.all = Prot.b$Rot.ul*Prot.b$Size*1000
-Prot.b$Spi.all = Prot.b$Spi.ul*Prot.b$Size*1000
-Prot.b$Ble.all = Prot.b$Ble.ul*Prot.b$Size*1000
-Prot.b$Pca.all = Prot.b$Pca.ul*Prot.b$Size*1000
-Prot.b$Col.all = Prot.b$Col.ul*Prot.b$Size*1000
-Prot.b$Chi.all = Prot.b$Chi.ul*Prot.b$Size*1000
-Prot.b$Tet.all = Prot.b$Tet.ul*Prot.b$Size*1000
-Prot.b$Other.all = Prot.b$Other.ul*Prot.b$Size*1000
-Prot.b$bioarea.all = Prot.b$bioarea_per_ul*Prot.b$Size*1000
+#... add species richness per patch column
+species = c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
+Prot.b$richness = apply(Prot.b[,species]>0,1,sum)
 
-head(Prot.b$Tet.all[Prot.b$day==7 & Prot.b$Size==7.5 & Prot.b$Treatment=="Connected"])
-# [1]  830.23255 1196.51163 1304.65116  165.69767    0.00000  231.97675  568.60465  436.04651  559.88372
-
+#... add community eveness per patch column 
+simpson = function(x){return(sum((x/sum(x))^2))}; 
+Prot.b$simpson = apply(Prot.b[,species],1,simpson)
 
 ##################
 #Specify factors and Drop unused levels
 ##################
-Prot.b$Label = factor(Prot.b$Label)
 Prot.b$Size = factor(Prot.b$Size)
 Prot.b = droplevels(Prot.b)
 
 #...Fix structure and drop unused levels
 Cyto$Date = factor(Cyto$Date)
-Cyto$Label = factor(Cyto$Label)
 Cyto$Size = factor(Cyto$Size)
 Cyto = droplevels(Cyto)
 
-#...Calculate some Protist community aggregate properties
-Prot.b$Prot.tot.ab = rowSums(Prot.b[,32:39])
-Prot.b$Prot.rich = specnumber(Prot.b[,32:39])
-Prot.b$Prot.div = diversity(Prot.b[,32:39],"simpson")
-
 
 #########################################################################
-################# PRELIMINARY FIGURES 
+################# Exploratory FIGURES 
 #########################################################################
 
 ##################
-# Protist species total abundance per treatment (connected/isolated) and per patch size
+# Protist each species total abundance per treatment (connected/isolated) and per patch size
 ##################
-{col.p = rainbow(8)
+{
+#Subset data of interest for the figure
+x = subset(Prot.b, Prot.b$Treatment %in% c("Connected","Isolated") & Prot.b$Landscape %in% c("Blue"))
+x = droplevels(x)
+#Species to plot on each graph
+ab.all = c("Rot.all","Spi.all","Ble.all","Pca.all","Col.all","Chi.all","Tet.all","Other.all")
+#Colors for each species
+col.p = rainbow(8)
 
 pdf(paste(graphpath,"Prot_Blue_Treatment_Size.pdf"),width=8,height=8)
 
-
-for(i in 1:nlevels(Prot.b$Treatment)){
+for(i in 1:nlevels(x$Treatment)){
   
-  for(j in 1:nlevels(Prot.b$Size)) { 
+  for(j in 1:nlevels(x$Size)) { 
   
-  max = max(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],32:38])
-
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Rot.all,col=col.p[1],ylim=c(0,max),legend=T,xlab="Time",ylab="Protist total abundance"))
+  max = max(x[x$Treatment==levels(x$Treatment)[i] & x$Size==levels(x$Size)[j],ab.all])
+    
+    for(k in 1:length(ab.all)){ 
+  with(x[x$Treatment==levels(x$Treatment)[i] & x$Size==levels(x$Size)[j],],lineplot.CI(day,eval(parse(text= paste(ab.all[k]))),col=col.p[k],ylim=c(0,max),legend=T,xlab="Time",ylab="Protist total abundance"))
   par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Chi.all,col=col.p[6],yaxt="n",ylim=c(0,max),legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Tet.all,col=col.p[7],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Col.all,col=col.p[5],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Pca.all,col=col.p[4],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Ble.all,col=col.p[3],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Spi.all,col=col.p[2],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  par(new=T)
-  with(Prot.b[Prot.b$Treatment==levels(Prot.b$Treatment)[i] & Prot.b$Size==levels(Prot.b$Size)[j],],lineplot.CI(day,Other.all,col=col.p[2],ylim=c(0,max),yaxt="n",legend=T,xlab="Time",ylab="Protist total abundance"))
-  
-  
-  title(main=paste(levels(Prot.b$Treatment)[i],levels(Prot.b$Size)[j],"mL"))
+            }
+  title(main=paste(levels(x$Treatment)[i],levels(x$Size)[j],"mL"))
   col.labels=c("Rot","Spi","Ble","PCA","Col","Chi","Tet","Oth")
   testcol = col.p
   color.legend(4.5,10000,5,max,col.labels,testcol,cex=1,gradient="y")
   #dif between x1 and xr is the width of the rectangle
-} 
-  }
+} }
 
-dev.off()}
-
-##################
-# Protist temporal community patterns (aggregate properties) across patch sizes
-##################
-{col.p = rainbow(n=4,start=0.1)
-
-pdf(paste(graphpath,"Prot_Blue_DIV_AB_TIME.pdf"),width=8,height=8)
-
-with(Prot.b,lineplot.CI(day,Prot.tot.ab,Size,col=col.p,legend=T,xlab="Time",ylab="Protist total abundance"))
-
-with(Prot.b,lineplot.CI(day,Prot.tot.ab,Treatment,legend=T,xlab="Time",ylab="Protist total abundance"))
-
-with(Prot.b,lineplot.CI(day,Prot.rich,Size,col=col.p,legend=T,xlab="Time",ylab="Protist species richness"))
-
-with(Prot.b,lineplot.CI(day,Prot.rich,Treatment,col=col.p,legend=T,xlab="Time",ylab="Protist species richness"))
-
-with(Prot.b,lineplot.CI(day,Prot.div,Size,col=col.p,legend=T,xlab="Time",ylab="Protist diversity (Simpson)"))
-
-with(Prot.b,lineplot.CI(day,Prot.div,Treatment,col=col.p,legend=T,xlab="Time",ylab="Protist diversity (Simpson)"))
-
-with(Prot.b,lineplot.CI(day,bioarea.all,Treatment,col=col.p,legend=T,xlab="Time",ylab="Total bioarea"))
 dev.off()
 }
 
 ##################
-# Bacteria abundance patterns over time and by patch size*landscape*connected/isolated
+# Protist temporal community patterns (aggregate properties) across patch sizes
+##################
+{
+#colors for each path size
+col.p = rainbow(n=4,start=0.1)
+#Subset data of interest for the figure
+x = subset(Prot.b, Prot.b$Treatment %in% c("Connected","Isolated") & Prot.b$Landscape %in% c("Blue"))
+x = droplevels(x)
+#Metrics of interest 
+metrics = c("abundance","richness","simpson")
+#Grouping factors
+grouping = c("Size","Treatment")
+#Figure
+pdf(paste(graphpath,"Prot_Blue_DIV_AB_TIME.pdf"),width=8,height=8)
+for(i in 1:length(metrics)){
+  for(j in 1:length(grouping)) {
+    with(x,lineplot.CI(day,eval(parse(text= paste(metrics[i]))),eval(parse(text= paste(grouping[j]))),col=col.p,legend=T,xlab="Time",ylab=metrics[i]))
+  }
+}
+dev.off()
+}
+
+##################
+# Bacteria density patterns over time and by patch size
 ##################
 {
 
+#Subset data of interest for the figure
+x = subset(Cyto, Cyto$Treatment %in% c("Connected","Isolated") & Cyto$Replicate %in% c("A","B"))
+x = droplevels(x)
+  
 pdf(paste(graphpath,"BACT_AB_SIZE_LANDSCAPE_FLOW_TIME.pdf"),width=8,height=8)
+for(i in 1:nlevels(x$Treatment)){
   
-
-for(i in 1:nlevels(Cyto$Treatment)){
-  
-  for(j in 1:nlevels(Cyto$Landscape)) {
+  for(j in 1:nlevels(x$Landscape)) {
     
-    max = max(Cyto[Cyto$Treatment==levels(Cyto$Treatment)[i] & Cyto$Landscape==levels(Cyto$Landscape)[j],20])
-
+    max = max(x[x$Treatment==levels(x$Treatment)[i] & x$Landscape==levels(x$Landscape)[j],20])
     
-    
-    with(Cyto[Cyto$Treatment==levels(Cyto$Treatment)[i] & Cyto$Landscape==levels(Cyto$Landscape)[j],],lineplot.CI(day,count.ml,Size,col="black",ylim=c(0,max),legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
-    
-    
+    with(x[x$Treatment==levels(x$Treatment)[i] & x$Landscape==levels(x$Landscape)[j],],lineplot.CI(day,density,Size,col="black",ylim=c(0,max),legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
     title(main=paste(levels(Cyto$Treatment)[i],levels(Cyto$Landscape)[j]))
 
   }
@@ -252,25 +236,30 @@ for(i in 1:nlevels(Cyto$Treatment)){
   }
 
 ##################
-# Bacteria temporal patterns across treatment (connected vs. isolated) and landscape
+# Bacteria density temporal patterns across treatments (connected vs. isolated) and landscape types
 ##################
 {
+
+#Subset data of interest for the figure
+x = subset(Cyto, Cyto$Treatment %in% c("Connected","Isolated") & Cyto$Replicate %in% c("A","B"))
+x = droplevels(x)  
+
 pdf(paste(graphpath,"BACT_AB_LANDSCAPE_FLOW_TIME.pdf"),width=8,height=8)
   
-with(Cyto[Cyto$Landscape=="Blue",],lineplot.CI(day,count.ml,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
+with(x[x$Landscape=="Blue",],lineplot.CI(day,density,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Blue")
-with(Cyto[Cyto$Landscape=="Green",],lineplot.CI(day,count.ml,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
+with(x[x$Landscape=="Green",],lineplot.CI(day,density,Treatment,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Green")
 
-with(Cyto[Cyto$Treatment=="Connected",],lineplot.CI(day,count.ml,Landscape,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
+with(x[x$Treatment=="Connected",],lineplot.CI(day,density,Landscape,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Connected")
-with(Cyto[Cyto$Treatment=="Isolated",],lineplot.CI(day,count.ml,Landscape,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
+with(x[x$Treatment=="Isolated",],lineplot.CI(day,density,Landscape,legend=T,xlab="Time",ylab="Bacteria density (/mL)"))
 title(main="Isolated")
 dev.off()
 }
 
 ##################
-#Protist beta-diversity
+#Protist beta-diversity (need to be re-done)
 ##################
 {
 sp.mat = Prot.b[Prot.b$day!=0,32:39]
@@ -289,18 +278,56 @@ dev.off()
 }
 
 
-##################
-# Network figures
-##################
+#########################################################################
+################# Dendritic network
+#########################################################################
+
 #Build the dendritic landscapes from connectivity matrices and calculate network metrics of interest
 library(igraph)
 source(paste0(to.script,"Network_metric_bg.R"))
 
+#Merged network metrics to data
+
+#.....Protist
+net.met = c("degree","dist","diam")
+for(i in 1:length(net.met)){
+  #Protist
+  Prot.b[,net.met[i]] = NA
+  Prot.b[which(Prot.b$Landscape == "Blue" & Prot.b$day!=0),net.met[i]] = rep(c(eval(parse(text= paste("RepA",net.met[i],sep="."))),eval(parse(text= paste("RepB",net.met[i],sep="."))),eval(parse(text= paste("RepC",net.met[i],sep="."))),eval(parse(text= paste("RepD",net.met[i],sep=".")))),8)
+  #Bacteria
+  Cyto[,net.met[i]] = NA
+  Cyto[which(Cyto$Landscape == "Green" & Cyto$Treatment == "Isolated" & Cyto$day!=0 & Cyto$Replicate %in% c("A","B")),net.met[i]] = rep(c(eval(parse(text= paste("RepA",net.met[i],sep="."))),eval(parse(text= paste("RepB",net.met[i],sep=".")))),4)
+  Cyto[which(Cyto$Landscape == "Green" & Cyto$Treatment == "Connected" & Cyto$day!=0 & Cyto$Replicate %in% c("A","B","C","D")),net.met[i]] = rep(c(eval(parse(text= paste("RepA",net.met[i],sep="."))),eval(parse(text= paste("RepB",net.met[i],sep="."))),eval(parse(text= paste("RepC",net.met[i],sep="."))),eval(parse(text= paste("RepD",net.met[i],sep=".")))),4)
+  Cyto[which(Cyto$Landscape == "Blue" & Cyto$day!=0 & Cyto$Replicate %in% c("A","B","C","D")),net.met[i]] = rep(c(eval(parse(text= paste("RepA",net.met[i],sep="."))),eval(parse(text= paste("RepB",net.met[i],sep="."))),eval(parse(text= paste("RepC",net.met[i],sep="."))),eval(parse(text= paste("RepD",net.met[i],sep=".")))),8)
+}
+
+##################
+#Preliminary figures 
+##################
+#..Select the data needed
+dates = c("20160509","20160517","20160523","20160531" )
+sizes = c(7.5,13,22.5,45)
+isolated = Prot.b$Label[which(Prot.b$Treatment=="Isolated")] #Labels of isolated patches
+connected = Prot.b$Label[which(Prot.b$Treatment=="Connected")] #Labels of connected patches
+x=subset(Prot.b,date %in% dates & Label %in% c(connected) & Landscape=="Blue")[,c("date","Label","Size","Replicate","degree","dist","diam","abundance","bioarea","richness","simpson",species)]
+x = droplevels((x))
+
+bargraph.CI(Size,richness,group=dist,data=x,legend=T)
+bargraph.CI(Size,abundance,group=dist,data=x,legend=T)
+bargraph.CI(Size,bioarea,group=dist,data=x,legend=T)
+
+x = subset(Cyto,Landscape=="Blue" & Treatment %in% c("Isolated","Connected") & Date!=20160502 & Replicate %in% c("A","B"))[,c("day","Label","Treatment","Landscape","Replicate","Size","degree","diam","dist","Count","density")] 
+x = droplevels(x)
+
+bargraph.CI(Size,density,group=dist,data=x,legend=T)
+
+##################
+#Pie chart network plots (need to be re-done)
+##################
 
 ################
 #...Bacteria
 
-#IF YOU ADDED DAY 0: The first date is based on pooled cultures therefore the graph they produce cannot be interpreted
 #To graph an averaged through time, just remove the loop through Cyto$Date
 {
 for(i in 1:nlevels(Cyto$Date)) {
@@ -400,7 +427,7 @@ for(i in 1:nlevels(Prot.b$date)) {
 
 
 #########################################################################
-################# MAIN FIGURES
+################# Log Response Ratio 
 #########################################################################
 
 ##################
@@ -412,6 +439,503 @@ remove(Green);remove(Green.m);remove(RepA);remove(RepA.m);remove(RepB);remove(Re
 remove(coords1);remove(abundance);remove(fine);remove(graphCol);rm(i);rm(j);rm(k);rm(magn);rm(patch.size);rm(z)
 rm(clrs)
 detach("package:igraph") #igraph masks several functions in other packages
+
+##################
+# Calculate and Plot LRR 
+##################
+
+#... Set a minimum value to replace 0, for log response ratios
+mini=0.001
+
+##############
+#...Protist
+
+#..Replace values 0 by mini value
+Prot.b$abundance = ifelse(Prot.b$abundance == 0,mini,Prot.b$abundance)
+Prot.b$bioarea = ifelse(Prot.b$bioarea == 0,mini,Prot.b$bioarea)
+Prot.b$richness = ifelse(Prot.b$richness == 0,mini,Prot.b$richness)
+Prot.b$simpson = ifelse(is.nan(Prot.b$simpson),mini,Prot.b$simpson)
+for(i in 1:length(species)){
+  Prot.b[,species[i]] = ifelse(Prot.b[,species[i]] == 0,mini,Prot.b[,species[i]])
+}
+
+#..Calculate Log response ratio
+dates = c("20160509","20160517","20160523","20160531" )
+sizes = c(7.5,13,22.5,45)
+isolated = Prot.b$Label[which(Prot.b$Treatment=="Isolated")] #Labels of isolated patches
+connected = Prot.b$Label[which(Prot.b$Treatment=="Connected")] #Labels of connected patches
+
+#..Select the data needed
+x=subset(Prot.b,date %in% dates & Label %in% c(isolated,connected))[,c("date","Label","Size","Replicate","abundance","bioarea","richness","simpson",species)]
+
+#..Calculate the different log response ratios
+{ 
+logES_ab = logES_ba = logES_rich = logES_simp = logES_species = vector(mode="list",length=4);
+
+for(i in 1:length(dates)){
+  x_is=subset(x,date==dates[i] & Label %in% isolated)
+  x_con=subset(x,date==dates[i] & Label %in% connected)
+  logES_ab[[i]] = cbind(x_is[,c("date","Size","Replicate")],logES=log(x_con$abundance/x_is$abundance))
+  logES_ba[[i]] = cbind(x_is[,c("date","Size","Replicate")],logES=log(x_con$bioarea/x_is$bioarea))
+  logES_rich[[i]] = cbind(x_is[,c("date","Size","Replicate")],logES=log(x_con$richness/x_is$richness))
+  logES_simp[[i]] = cbind(x_is[,c("date","Size","Replicate")],logES=log(x_con$simpson/x_is$simpson))
+  logES_species[[i]] = cbind(x_is[,c("date","Size","Replicate")],logRot=log(x_con$Rot/x_is$Rot),logSpi=log(x_con$Spi/x_is$Spi),logBle=log(x_con$Ble/x_is$Ble),logPca=log(x_con$Pca/x_is$Pca),logCol=log(x_con$Col/x_is$Col),logChi=log(x_con$Chi/x_is$Chi),logTet=log(x_con$Tet/x_is$Tet),logOther=log(x_con$Other/x_is$Other))
+}
+}
+
+#..Put the data together
+logES_ab_tot = rbind(logES_ab[[1]],logES_ab[[2]],logES_ab[[3]],logES_ab[[4]])
+logES_ba_tot = rbind(logES_ba[[1]],logES_ba[[2]],logES_ba[[3]],logES_ba[[4]])
+logES_rich_tot = rbind(logES_rich[[1]],logES_rich[[2]],logES_rich[[3]],logES_rich[[4]])
+logES_simp_tot = rbind(logES_simp[[1]],logES_simp[[2]],logES_simp[[3]],logES_simp[[4]])
+logES_species_tot = rbind(logES_species[[1]],logES_species[[2]],logES_species[[3]],logES_species[[4]])
+
+#..Define the metrics that will be plotted 
+metrics = list(logES_ab_tot,logES_ba_tot,logES_rich_tot,logES_simp_tot)
+names(metrics)= c("abundance","bioarea","richness","simpson")
+
+#... Plots
+#..Effect size by time and by patch size
+{ 
+pdf(paste(graphpath,"Effect_size_Protists.pdf"),width=8,height=8)
+for(i in 1:length(metrics)){
+  d=metrics[[i]]
+  #... Plots per patch size for the LRR of each metric
+  plot(NA,xlim=c(0.5,4.5),ylim=c(-1,1),main = names(metrics)[i],xlab="PatchSize",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=sizes)
+  abline(h=0,lty=3)
+  for(k in 1:length(sizes)){
+    #Calculate CI 95% after Hedges et al., 1999
+    x0_con=subset(x[,names(metrics)[i]],x$Size==sizes[k] & x$Label %in% connected)
+    x0_is = subset(x[,names(metrics)[i]],x$Size==sizes[k] & x$Label %in% isolated)
+    m_con=mean(x0_con)
+    m_is = mean(x0_is)
+    n_con = length(x0_con)
+    n_is = length(x0_is)
+    CI= qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+    #Calculate mean LRR
+    x0=subset(d,Size==sizes[k])$logES 
+    m=mean(x0)
+    #add points and arrows
+    arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+    points(k,m,pch=19)
+  }
+  #... Plots per date for the LRR of each metric
+  plot(NA,xlim=c(0.5,4.5),ylim=c(-1,1),main = names(metrics)[i],xlab="Date",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=dates)
+  abline(h=0,lty=3)
+  for(k in 1:length(dates)){
+    #Calculate CI 95% after Hedges et al., 1999
+    x0_con=subset(x[,names(metrics)[i]],x$date==dates[k] & x$Label %in% connected)
+    x0_is = subset(x[,names(metrics)[i]],x$date==dates[k] & x$Label %in% isolated)
+    m_con=mean(x0_con)
+    m_is = mean(x0_is)
+    n_con = length(x0_con)
+    n_is = length(x0_is)
+    CI= qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+    #Calculate mean LRR
+    x0=subset(d,date==dates[k])$logES
+    m=mean(x0)
+    #add points and arrows
+    arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+    points(k,m,pch=19)
+  }
+  
+  #... interactions dates x size
+  for(j in 1:length(dates)){
+    d=subset(metrics[[i]],date==dates[j])
+    plot(NA,xlim=c(0.5,4.5),ylim=range(d$logES),main = paste(names(metrics)[i],dates[j]),xlab="PatchSize",ylab="ln(patch connected / patch isolated)",xaxt="n")
+    axis(1,at=1:4,labels=sizes)
+    abline(h=0,lty=3)
+    for(k in 1:length(sizes)){
+      #Calculate CI 95% after Hedges et al., 1999
+      x0_con=subset(x[,names(metrics)[i]],x$Size==sizes[k] & x$date==dates[j] & x$Label %in% connected)
+      x0_is = subset(x[,names(metrics)[i]],x$Size==sizes[k] & x$date==dates[j] & x$Label %in% isolated)
+      m_con=mean(x0_con)
+      m_is = mean(x0_is)
+      n_con = length(x0_con)
+      n_is = length(x0_is)
+      CI= qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+      #Calculate mean LRR
+      x0=subset(d,Size==sizes[k])$logES
+      m=mean(x0)
+      #add points and arrows
+      arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+      points(k,m,pch=19)
+    }
+  }
+}
+dev.off()
+
+}
+
+#..Effect size by species
+{ 
+pdf(paste(graphpath,"Effect_size_Protists_byspecies.pdf"),width=8,height=8)
+ES_species= c("logRot","logSpi","logBle","logPca","logCol","logChi","logTet","logOther")
+d=logES_species_tot
+plot(NA,xlim=c(0.5,length(species)+0.5),ylim=c(-2,2),main = "Protist species",xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:length(species),labels=species,las=2)
+abline(h=0,lty=3)
+for(k in 1:length(species)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x[,species[k]],x$Label %in% connected)
+  x0_is = subset(x[,species[k]],x$Label %in% isolated)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+  #Calculate mean LRR
+  x0=d[,ES_species[k]]
+  m=mean(x0)
+  #add points and arrows
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#Interaction species*dates
+ES_species= c("logRot","logSpi","logBle","logPca","logCol","logChi","logTet","logOther")
+for(j in 1:length(dates)){ 
+  d=subset(logES_species_tot,date==dates[j])
+  plot(NA,xlim=c(0.5,length(species)+0.5),ylim=c(-5,5),main =paste("Protist species",dates[j]),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:length(species),labels=species,las=2)
+  abline(h=0,lty=3)
+  for(k in 1:length(species)){
+    #Calculate CI 95% after Hedges et al., 1999
+    x0_con= subset(x[,species[k]],x$Label %in% connected & x$date==dates[j])
+    x0_is = subset(x[,species[k]],x$Label %in% isolated & x$date==dates[j])
+    m_con=mean(x0_con)
+    m_is = mean(x0_is)
+    n_con = length(x0_con)
+    n_is = length(x0_is)
+    CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+    #Calculate mean LRR
+    x0=d[,ES_species[k]]
+    m=mean(x0)
+    #add points and arrows
+    arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+    points(k,m,pch=19)
+  }
+   }
+#Interaction species*patch size
+ES_species= c("logRot","logSpi","logBle","logPca","logCol","logChi","logTet","logOther")
+for(j in 1:length(sizes)){ 
+  d=subset(logES_species_tot,Size==sizes[j])
+  plot(NA,xlim=c(0.5,length(species)+0.5),ylim=c(-5,5),main =paste("Protist species",sizes[j]),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:length(species),labels=species,las=2)
+  abline(h=0,lty=3)
+  for(k in 1:length(species)){
+    #Calculate CI 95% after Hedges et al., 1999
+    x0_con= subset(x[,species[k]],x$Label %in% connected & x$Size==sizes[j])
+    x0_is = subset(x[,species[k]],x$Label %in% isolated & x$Size==sizes[j])
+    m_con=mean(x0_con)
+    m_is = mean(x0_is)
+    n_con = length(x0_con)
+    n_is = length(x0_is)
+    CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+    #Calculate mean LRR
+    x0=d[,ES_species[k]]
+    m=mean(x0)
+    #add points and arrows
+    arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+    points(k,m,pch=19)
+  }
+}
+dev.off()
+}
+
+#############
+#..Bacteria
+
+#Select the data needed 
+x = subset(Cyto,Treatment %in% c("Isolated","Connected") & Date!=20160502 & Replicate %in% c("A","B"))[,c("day","Label","Treatment","Landscape","Replicate","Size","degree","diam","dist","Count","density")] 
+#Add patch size and richness and abundance in the blue landscape
+x$Size_b = 10
+x$richness_b = 0
+x$abundance_b = 0
+x$bact_blue = 0
+x$Size_b[which(x$Landscape=="Green")] = as.numeric(as.character(Prot.b$Size[which(Prot.b$Replicate %in% c("A","B") & Prot.b$date!=20160502 & Prot.b$Treatment %in% c("Isolated","Connected"))]))
+x$richness_b[which(x$Landscape=="Green")] = Prot.b$richness[which(Prot.b$Replicate %in% c("A","B") & Prot.b$date!=20160502 & Prot.b$Treatment %in% c("Isolated","Connected"))]
+x$abundance_b[which(x$Landscape=="Green")] = Prot.b$abundance[which(Prot.b$Replicate %in% c("A","B") & Prot.b$date!=20160502 & Prot.b$Treatment %in% c("Isolated","Connected"))]
+x$bact_blue[which(x$Landscape=="Green")] = x$density[which(x$Landscape=="Blue")]
+
+#grouping variables
+days = c(7,15,21,29)
+richness_blue = c(0.001,1,2,3,4,5,6,7,8)
+sizes = c(7.5,13,22.5,45)
+dist_outlet = c(0,1,2,3,4,5,6)
+dist_outlet2 = c(0,1,2,5,6)
+degree_cent  = c(1,2,3,4,5,6)
+#Separate isolated/connected green/blue
+isolated_green = Cyto$Label[which(Cyto$Treatment=="Isolated" & Cyto$Landscape=="Green")] #Labels of isolated patches
+isolated_blue = Cyto$Label[which(Cyto$Treatment=="Isolated" & Cyto$Landscape=="Blue")] #Labels of isolated patches
+connected_green = Cyto$Label[which(Cyto$Treatment=="Connected" & Cyto$Landscape=="Green")]#Labels of connected patches
+connected_blue = Cyto$Label[which(Cyto$Treatment=="Connected" & Cyto$Landscape=="Blue")]#Labels of connected patches
+
+
+with(x[which(x$Label %in% connected_green & x$day==15),],plot(density ~ abundance_b))
+with(x[which(x$Label %in% connected_green & x$day==29),],plot(density ~ bact_blue))
+with(x[which(x$Label %in% connected_green & x$day==29),],plot(density ~ as.factor(richness_b)))
+
+with(x[which(x$Label %in% connected_green),],bargraph.CI(Size_b,richness_b,group=dist,legend=T))
+with(x[which(x$Label %in% connected_green),],bargraph.CI(Size_b,abundance_b,group=dist,legend=T))
+with(x[which(x$Label %in% connected_green),],bargraph.CI(Size_b,bact_blue,group=dist,legend=T))
+
+
+
+#Calculate Log Response Ratio
+logES_Blue = logES_Green = vector(mode="list",length=4);
+{ 
+for(i in 1:length(days)){
+  x_is_blue=subset(x,day==days[i] & Label %in% isolated_blue)
+  x_con_blue=subset(x,day==days[i] & Label %in% connected_blue)
+  logES_Blue[[i]] = cbind(x_is_blue[,c("day","Size","Replicate","density")],logES=log(x_con_blue$density/x_is_blue$density))
+  x_is_green=subset(x,day==days[i] & Label %in% isolated_green)
+  x_con_green=subset(x,day==days[i] & Label %in% connected_green)
+  logES_Green[[i]] = cbind(x_con_green[,c("day","Size","Size_b","degree","diam","richness_b","abundance_b","bact_blue","dist","Replicate","density")],logES=log(x_con_green$density/x_is_green$density))
+ }
+}
+
+#Put LRR back together
+logES_Blue_tot = rbind(logES_Blue[[1]],logES_Blue[[2]],logES_Blue[[3]],logES_Blue[[4]])
+logES_Green_tot = rbind(logES_Green[[1]],logES_Green[[2]],logES_Green[[3]],logES_Green[[4]])
+
+
+#Plot
+{ 
+pdf(paste(graphpath,"Effect_size_Bacteria.pdf"),width=8,height=8)
+
+#BACTERIA IN GREEN LANDSCAPES
+  d=logES_Green_tot
+  
+#... Plot over days for green landscapes
+plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Green",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:4,labels=days)
+abline(h=0,lty=3)
+for(k in 1:length(days)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$day==days[k] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$day==days[k] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+  #Calculate mean LRR
+  x0=subset(d,day==days[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#... Plot over patch size (in blue connected) for green landscapes
+plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Green",xlab="Size in blue connected",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:4,labels=sizes)
+abline(h=0,lty=3)
+for(k in 1:length(sizes)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$Size_b==sizes[k] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$Size_b==sizes[k] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))
+  #Calculate mean LRR
+  x0=subset(d,d$Size_b==sizes[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#... Plot over distance to outlet (in blue connected) for green landscapes
+plot(NA,xlim=c(0.5,7.5),ylim=c(-1,1),main = "Bacteria in Green",xlab="Distance to outlet in blue connected",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:7,labels=dist_outlet)
+abline(h=0,lty=3)
+for(k in 1:length(dist_outlet)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$dist==dist_outlet[k] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$dist==dist_outlet[k] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))
+  #Calculate mean LRR
+  x0=subset(d,d$dist==dist_outlet[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#... Plot over degree (in blue connected) for green landscapes
+plot(NA,xlim=c(0.5,6.5),ylim=c(-1,1),main = "Bacteria in Green",xlab="Degree centrality in blue connected",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:6,labels=degree_cent)
+abline(h=0,lty=3)
+for(k in 1:length(degree_cent)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$degree==degree_cent[k] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$degree==degree_cent[k] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))
+  #Calculate mean LRR
+  x0=subset(d,d$degree==degree_cent[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#... Plot over protist richness (in blue connected) for green landscapes
+plot(NA,xlim=c(0.5,9.5),ylim=c(-1,1),main = "Bacteria in Green",xlab="Protist richness (in blue connected)",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:9,labels=c(0,1,2,3,4,5,6,7,8))
+abline(h=0,lty=3)
+for(k in 1:length(richness_blue)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$richness_b==richness_blue[k] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$richness_b==richness_blue[k] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))
+  #Calculate mean LRR
+  x0=subset(d,d$richness_b==richness_blue[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#Plot over Protist and bacteria density in blue
+plot(NA,xlim=range(d$abundance),ylim=range(d$logES),xlab="Protist density in blue connected",ylab="ln(patch connected / patch isolated)",main = "Bacteria in Green")
+points(d$abundance_b,d$logES)
+plot(NA,xlim=range(d$bact_blue),ylim=range(d$logES),xlab="Bacteria density in blue connected",ylab="ln(patch connected / patch isolated)",main = "Bacteria in Green")
+points(d$bact_blue,d$logES)
+
+#Interaction between distanece to outlet and patch size
+plot(NA,ylim=c(-1,1.2),xlim=c(0.5,4.5),xaxt="n",xlab="Patch size",ylab="LRR")
+axis(1,at=1:4,labels=sizes)
+abline(h=0,lty=3)
+#library(RColorBrewer)
+#col.dist=brewer.pal(7,"Set3")
+col.dist = c('#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f','#bf5b17')
+#col.dist = rainbow(7)
+for(j in 1:length(dist_outlet2)){ 
+  for(k in 1:length(sizes)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$Size_b==sizes[k] & x$dist == dist_outlet2[j] & x$Label %in% connected_green)
+  x0_is = subset(x$density,x$Size_b==sizes[k] & x$dist == dist_outlet2[j] & x$Label %in% isolated_green)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))
+  #Calculate mean LRR
+  x0=subset(d,Size_b==sizes[k] & dist == dist_outlet2[j])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05,col=col.dist[j])
+  points(k,m,pch=19,col=col.dist[j])
+ }
+  }
+
+legend("bottomright",legend=dist_outlet2,col=col.dist,pch=16,title="Distance to outlet",ncol=2,cex=0.8)
+
+#BACTERIA IN BLUE LANDSCAPES
+d=logES_Blue_tot
+
+#... Plot over days for blue landscapes
+plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Blue",xlab="Days",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:4,labels=days)
+abline(h=0,lty=3)
+for(k in 1:length(days)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$day==days[k] & x$Label %in% connected_blue)
+  x0_is = subset(x$density,x$day==days[k] & x$Label %in% isolated_blue)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+  #Calculate mean LRR
+  x0=subset(d,day==days[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+
+#... Plot by patch size for blue landscapes
+plot(NA,xlim=c(0.5,4.5),ylim=c(-0.5,0.5),main = "Bacteria in Blue",xlab="Patch Size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+axis(1,at=1:4,labels=sizes)
+abline(h=0,lty=3)
+for(k in 1:length(sizes)){
+  #Calculate CI 95% after Hedges et al., 1999
+  x0_con= subset(x$density,x$Size==sizes[k] & x$Label %in% connected_blue)
+  x0_is = subset(x$density,x$Size==sizes[k] & x$Label %in% isolated_blue)
+  m_con=mean(x0_con)
+  m_is = mean(x0_is)
+  n_con = length(x0_con)
+  n_is = length(x0_is)
+  CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+  #Calculate mean LRR
+  x0=subset(d,Size==sizes[k])$logES
+  m=mean(x0)
+  arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+  points(k,m,pch=19)
+}
+#... Interactions day x size blue landscapes
+for(j in 1:length(days)){
+  d=subset(logES_Blue_tot,day==days[j])
+  plot(NA,xlim=c(0.5,4.5),ylim=range(d$logES),main = paste("Bacteria in Blue",days[j]),xlab="Patch Size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=sizes)
+  abline(h=0,lty=3)
+  for(k in 1:length(sizes)){
+    #Calculate CI 95% after Hedges et al., 1999
+    x0_con= subset(x$density,x$day==days[j] & x$Size == sizes[k] & x$Label %in% connected_blue)
+    x0_is = subset(x$density,x$day==days[j] & x$Size == sizes[k] & x$Label %in% isolated_blue)
+    m_con=mean(x0_con)
+    m_is = mean(x0_is)
+    n_con = length(x0_con)
+    n_is = length(x0_is)
+    CI = qnorm(0.975)*sqrt( (sd(x0_con)^2/(n_con*m_con^2)) + (sd(x0_is)^2/(n_is*m_is^2)))     
+    #Calculate mean LRR
+    x0=subset(d,Size==sizes[k])$logES
+    m=mean(x0)
+    arrows(k,m+CI,k,m-CI,angle=90,code=3,length=0.05)
+    points(k,m,pch=19)
+  }
+}
+dev.off()
+
+}
+
+
+####The END#######
+
+#Some other figures that needs to be place somewhere  
+x = subset(Cyto,Landscape %in% c("Blue") & Treatment %in% c("Isolated","Connected") & Date!=20160502 & Replicate %in% c("A","B"))[,c("day","Label","Treatment","Landscape","Replicate","Size","Count","density")] 
+x = droplevels(x)
+lineplot.CI(x$Size,x$density,xlab="Size",ylab="Bacteria density (Blue)")
+x = subset(Prot.b,Treatment %in% c("Isolated","Connected") & date!=20160502 & Replicate %in% c("A","B"))[,c("day","Label","Treatment","Landscape","Replicate","Size","abundance","richness","simpson")] 
+x = droplevels(x)
+lineplot.CI(x$Size,x$richness,xlab="Size",ylab="Protist richness")
+lineplot.CI(x$Size,x$abundance,xlab="Size",ylab="Protist density")
+lineplot.CI(x$Size,x$simpson,xlab="Size",ylab="Evenness")
+
+
+
+library(nlme)
+Mod = lme(var.prot.rich ~ as.factor(Size)+day, ~ as.factor(date)|Replicate,data=Prot.b.connected,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+hist(Mod$residuals,breaks=50)
+summary(Mod)$tTable
+
+Mod2 = lme(var.bact.green ~ as.factor(Size)+day, ~ as.factor(Date)|Replicate,data=Cyto.g.isolated,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+hist(Mod2$residuals,breaks=50)
+summary(Mod2)$tTable
+
+
+
+
+#########################################################################
+################# MAIN ANALYSES (NEED TO RE_DONE)
+#########################################################################
+
 
 ##################
 # Remove Day 0 
@@ -429,43 +953,43 @@ Cyto$Date = factor(Cyto$Date)
 # Merge network metrics to Prot.b, Cyto.b, Cyto.g data
 #################
 { 
-
-#...Extract blue and green landscapes only for bacteria (we don't have protist data for green landscapes)
-selb = c("Blue")
-selg = c("Green")
-Cyto.b = Cyto[Cyto$Landscape %in% selb,]
-Cyto.g = Cyto[Cyto$Landscape %in% selg,]
-Cyto.b= droplevels(Cyto.b)
-Cyto.g= droplevels(Cyto.g)
-
-#...Remove moncultures from protist data
-sel.treat = c("Connected","Isolated")
-Prot.b = Prot.b[which(Prot.b$Treatment %in% sel.treat),]
-Prot.b=droplevels(Prot.b)
-
-#...merge network metrics to data
-#.....Protist
-Prot.b$Degree = rep(c(RepA.degree,RepB.degree,RepC.degree,RepD.degree),8)
-Prot.b$Dist = rep(c(RepA.dist,RepB.dist,RepC.dist,RepD.dist),8)
-Prot.b$Diam = rep(c(RepA.diam,RepB.diam,RepC.diam,RepD.diam),8)
-Prot.b$Drainage = rep(c(RepA.drainage,RepB.drainage,RepC.drainage,RepD.drainage),8)
-#.....Bacteria
-Cyto.b$Degree = rep(c(RepA.degree,RepB.degree),8)
-Cyto.b$Dist = rep(c(RepA.dist,RepB.dist),8)
-Cyto.b$Diam = rep(c(RepA.diam,RepB.diam),8)
-Cyto.b$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
-
-Cyto.g$Size = Prot.b$Size[which(Prot.b$Replicate %in% c("A","B"))]
-Cyto.g$Degree = rep(c(RepA.degree,RepB.degree),8)
-Cyto.g$Dist = rep(c(RepA.dist,RepB.dist),8)
-Cyto.g$Diam = rep(c(RepA.diam,RepB.diam),8)
-Cyto.g$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
-
-#...Fix some variables
-Prot.b$Size = as.numeric(as.character(Prot.b$Size))
-Cyto.b$Size = as.numeric(as.character(Cyto.b$Size))
-Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
-
+  
+  #...Extract blue and green landscapes only for bacteria (we don't have protist data for green landscapes)
+  selb = c("Blue")
+  selg = c("Green")
+  Cyto.b = Cyto[Cyto$Landscape %in% selb,]
+  Cyto.g = Cyto[Cyto$Landscape %in% selg,]
+  Cyto.b= droplevels(Cyto.b)
+  Cyto.g= droplevels(Cyto.g)
+  
+  #...Remove moncultures from protist data
+  sel.treat = c("Connected","Isolated")
+  Prot.b = Prot.b[which(Prot.b$Treatment %in% sel.treat),]
+  Prot.b=droplevels(Prot.b)
+  
+  #...merge network metrics to data
+  #.....Protist
+  Prot.b$Degree = rep(c(RepA.degree,RepB.degree,RepC.degree,RepD.degree),8)
+  Prot.b$Dist = rep(c(RepA.dist,RepB.dist,RepC.dist,RepD.dist),8)
+  Prot.b$Diam = rep(c(RepA.diam,RepB.diam,RepC.diam,RepD.diam),8)
+  Prot.b$Drainage = rep(c(RepA.drainage,RepB.drainage,RepC.drainage,RepD.drainage),8)
+  #.....Bacteria
+  Cyto.b$Degree = rep(c(RepA.degree,RepB.degree),8)
+  Cyto.b$Dist = rep(c(RepA.dist,RepB.dist),8)
+  Cyto.b$Diam = rep(c(RepA.diam,RepB.diam),8)
+  Cyto.b$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
+  
+  Cyto.g$Size = Prot.b$Size[which(Prot.b$Replicate %in% c("A","B"))]
+  Cyto.g$Degree = rep(c(RepA.degree,RepB.degree),8)
+  Cyto.g$Dist = rep(c(RepA.dist,RepB.dist),8)
+  Cyto.g$Diam = rep(c(RepA.diam,RepB.diam),8)
+  Cyto.g$Drainage = rep(c(RepA.drainage,RepB.drainage),8)
+  
+  #...Fix some variables
+  Prot.b$Size = as.numeric(as.character(Prot.b$Size))
+  Cyto.b$Size = as.numeric(as.character(Cyto.b$Size))
+  Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
+  
 }
 
 ##################
@@ -594,125 +1118,8 @@ Cyto.g$Size = as.numeric(as.character(Cyto.g$Size))
 }
 
 
-##################
-# Plot Log Response Ratio
-##################
-library(Hmisc)
-#...Separate connected and isolated landscapes
-{ 
-#.......Connected
-#..........Protist
-Prot.b.connected = Prot.b[which(Prot.b$Treatment=="Connected"),]
-Prot.b.connected$indiv_per_ul[497] = 1
-Prot.b.connected$Prot.rich[497] = 1
-Prot.b.connected$indiv_per_ul[467] = 1
-Prot.b.connected$Prot.rich[467] = 1
-#..........Bacteria
-Cyto.connected =  Cyto[which(Cyto$Treatment=="Connected"),]
-Cyto.b.connected = Cyto.b[which(Cyto.b$Treatment=="Connected"),]
-Cyto.g.connected = Cyto.g[which(Cyto.g$Treatment=="Connected"),]
-#.......Isolated
-#..........Protist
-Prot.b.isolated = Prot.b[which(Prot.b$Treatment=="Isolated"),]
-Prot.b.isolated$indiv_per_ul[467] = 1
-Prot.b.isolated$Prot.rich[467] = 1
-Prot.b.isolated$indiv_per_ul[497] = 1
-Prot.b.isolated$Prot.rich[497] = 1
-#..........Bacteria
-Cyto.isolated =  Cyto[which(Cyto$Treatment=="Isolated"),]
-Cyto.b.isolated = Cyto.b[which(Cyto.b$Treatment=="Isolated"),]
-Cyto.g.isolated = Cyto.g[which(Cyto.g$Treatment=="Isolated"),]
-#........Merge bacteria blue with protist blue (will be easier to build figures below)
-Prot.b.connected$bact.count.ml = Cyto.b.connected$count.ml
-Prot.b.isolated$bact.count.ml = Cyto.b.isolated$count.ml
-}
-
-#LRR figures for BLUE landscapes
-{ 
-pdf(paste(graphpath,"LRR_BLUE.pdf"),width=8,height=8)
-y.var = c("Prot.rich","indiv_per_ul","bact.count.ml")
-x.var = c("Size","day")
-for(i in 1:length(x.var)){
-  for(j in 1:length(y.var)) { 
-  #...Calculate log response ratio
-  LRR = log(Prot.b.connected[,y.var[j]]/Prot.b.isolated[,y.var[j]])
-  #...Calculate 95% CI for each factor levels 
-  CI = 0 
-  for(g in 1:length(levels(as.factor(Prot.b.connected[,x.var[i]])))){ 
-  CI[g]  = qnorm(0.975)*sd(LRR[which(Prot.b.connected[,x.var[i]]==levels(as.factor(Prot.b.connected[,x.var[i]]))[g])])/sqrt(length(LRR[which(Prot.b.connected[,x.var[i]]==levels(as.factor(Prot.b.connected[,x.var[i]]))[g])]))
-  }
-  #...Plot figures
-  plot(Prot.b.isolated[,x.var[i]],LRR,type="n",ylab="LRR (ln[connected/isolated])",xlab=paste(x.var[i]),ylim=c(-0.5,0.5),xaxt="n",main=y.var[j])
-  axis(side = 1, at =levels(as.factor(Prot.b.connected[,x.var[i]])))
-  abline(h=0,lwd=1,col="gray")
-  x = as.numeric(levels(as.factor(Prot.b.isolated[,x.var[i]])))
-  y = tapply(LRR,Prot.b.isolated[,x.var[i]],mean)
-  ymax = y + CI
-  yminus = y - CI
-  errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-  
-  
-  }
-}
-dev.off()
-}
-
-#LRR figures for GREEN landscapes
-{ 
-pdf(paste(graphpath,"LRR_GREEN.pdf"),width=8,height=8)
-y.var = c("count.ml")
-x.var = c("Size","day")
-for(i in 1:length(x.var)){
-  for(j in 1:length(y.var)) { 
-    #...Calculate log response ratio
-    LRR = log(Cyto.g.connected[,y.var[j]]/Cyto.g.isolated[,y.var[j]])
-    #...Calculate 95% CI for each factor levels 
-    CI = 0 
-    for(g in 1:length(levels(as.factor(Cyto.g.connected[,x.var[i]])))){ 
-      CI[g]  = qnorm(0.975)*sd(LRR[which(Cyto.g.connected[,x.var[i]]==levels(as.factor(Cyto.g.connected[,x.var[i]]))[g])])/sqrt(length(LRR[which(Cyto.g.connected[,x.var[i]]==levels(as.factor(Cyto.g.connected[,x.var[i]]))[g])]))
-    }
-    #...Plot figures
-    plot(Cyto.g.isolated[,x.var[i]],LRR,type="n",ylab="LRR (ln[connected/isolated])",xlab=paste(x.var[i]),ylim=c(-0.5,0.5),xaxt="n",main=y.var[j])
-    axis(side = 1, at =levels(as.factor(Cyto.g.connected[,x.var[i]])))
-    abline(h=0,lwd=1,col="gray")
-    x = as.numeric(levels(as.factor(Cyto.g.isolated[,x.var[i]])))
-    y = tapply(LRR,Cyto.g.isolated[,x.var[i]],mean)
-    ymax = y + CI
-    yminus = y - CI
-    errbar(x,y,ymax,yminus,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
-    
-    
-  }
-}
-dev.off()
-
-}
-
-detach("package:Hmisc") 
 
 
-
-
-library(nlme)
-Mod = lme(var.prot.rich ~ as.factor(Size)+day, ~ as.factor(date)|Replicate,data=Prot.b.connected,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
-hist(Mod$residuals,breaks=50)
-summary(Mod)$tTable
-
-Mod2 = lme(var.bact.green ~ as.factor(Size)+day, ~ as.factor(Date)|Replicate,data=Cyto.g.isolated,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
-hist(Mod2$residuals,breaks=50)
-summary(Mod2)$tTable
-
-
-lineplot.CI(Cyto.b.connected$Size,Cyto.b.connected$count.ml)
-lineplot.CI(Prot.b.connected$Size,Prot.b.connected$Prot.rich)
-lineplot.CI(Prot.b.connected$Size,Prot.b.connected$indiv_per_ul)
-lineplot.CI(Cyto.g.isolated$Size,Cyto.g.isolated$count.ml)
-lineplot.CI(Cyto.g.connected$Size,Cyto.g.connected$count.ml)
-
-
-#########################################################################
-################# MAIN ANALYSES (NEED TO RE_DONE)
-#########################################################################
 
 {#..........................................#
 #           Blue-green interactions        #

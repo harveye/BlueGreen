@@ -177,6 +177,7 @@ cyto = cyto[order(cyto$Date),]
 cyto$day = c(rep(0,32),rep(7,524),rep(15,524),rep(21,524),rep(29,524)) #create a new variable "day"
 cyto$density = ((cyto$Count)*1000/cyto$Volume.uL)*1000 #convert from dens/50ul to dens/mL and then multiply by the cytometry dilution factor (1000)
 x = subset(cyto,Treatment %in% c("Isolated","Connected") & Date!=20160502 &Replicate %in% c("A","B"))[,c("day","Label","Treatment","Replicate","Size","Count","density")] 
+
 days = c(7,15,21,29)
 sizes = c(7.5,13,22.5,45)
 
