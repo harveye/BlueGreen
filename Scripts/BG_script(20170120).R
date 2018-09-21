@@ -8,6 +8,9 @@
 #... Contact: eric.harvey@eawag.ch                                                                                           #                                                                       #
 #..........................................................................................................................................#
 
+
+###THIS IS AN OLD SCRIPT THAT WAS SEPARATED INTO ITS USEFUL COMPONENTS INTO DIFFERENT SCRIPTS
+
 #########################################################################
 ################# DATA STRUCTURE
 #########################################################################
@@ -16,15 +19,16 @@
 #Clear any variables from the R environment 
 ##################
 rm(list=ls())
-# search()
-# detach(pos=3)
-getwd()
+
 ##################
 #Directory paths 
 ##################
-to.data = "./Data/"
-to.script = "~/Documents/Research/Eawag/Projects/8.Blue-Green/BlueGreen/Scripts/"
-to.output = "~/Documents/Research/Eawag/Projects/8.Blue-Green/4.Results/" #Outside the local Git repo
+to.data = "./data/"
+to.script = "./scripts/"
+to.output = "./output/"
+to.figs = "./figs/"
+to.R = "./output/"
+
 
 ##################
 #Load packages

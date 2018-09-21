@@ -1,0 +1,127 @@
+---
+title: "Overview"
+author: "Eric"
+date: '2018-09-21'
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE }
+##################
+#Load data in R environment
+##################
+library(tidyverse)
+library(vegan)
+library(png)
+
+##################
+#Directory paths 
+##################
+to.data <- "./data/"
+to.script <- "./scripts/"
+to.output <- "./output/"
+to.figs <- "./figs/"
+to.R <- "./output/"
+
+##################
+#Load data in R environment
+##################
+data = readRDS(paste0(to.output,"cl.data.RDS"))
+
+```
+
+
+#Overview of analysis for blue-green part 2
+
+## Main objectives
+
+The main objective of this project is to identify spatial feedbacks between two landscapes connected by resource spatial flow. 
+
+## Experimental design
+
+The design consisted of two landscapes: one 'blue' and one 'green' connected by the flow of dead biomass (microwaved protist and bacteria). Each landscape has 36 sites (50 mL falcon tubes). We have 5 replicates of those connected landscapes. Each blue landscape is a different realization of a dendritic network (i.e., the all follow the same geometric rules): 
+
+
+
+
+
+Not represented on the image is a gradient in patch size from upstream to downstream patches (7.5, 13, 22.5, and 45 mL).
+
+while the green landscape are simple cartesian landscape: 
+
+
+
+Importantly, in each landscape there was a dispersal dyanmic. Dispersal occurs at a fixed volume: 1mL exchanged per vertice in the blue landscape and 0.5 mL exchanged per connection for the green landscape (we assume lower dispersal in the terrestrial landscape compared to the aquatic one where physical flows are acting).
+
+The exchange between the landscape is fixed at 1mL. 
+
+##Analytical pipeline
+
+##Preliminary figures
+
+```{r preliminary plots, warning=FALSE, echo=FALSE}
+ggplot(data=data,mapping=aes(x=Treatment,y=prot.rich)) +
+  geom_boxplot(mapping=aes(color=Treatment)) + 
+  facet_wrap(~ day,nrow=2)
+
+ggplot(data=data,mapping=aes(x=bact.blue,y=prot.ab)) +
+  geom_point(mapping=aes(color=Treatment)) + 
+  facet_wrap(~ day,nrow=2)
+
+ggplot(data=data,mapping=aes(x=bact.blue,y=prot.rich)) +
+  geom_point(mapping=aes(color=Treatment)) + 
+  facet_wrap(~ day,nrow=2)
+
+ggplot(data=data,mapping=aes(x=bact.green,y=prot.ab)) +
+  geom_point(mapping=aes(color=Treatment)) + 
+  facet_wrap(~ day,nrow=2)
+
+ggplot(data=data,mapping=aes(x=as.factor(day),y=prot.ab)) +
+  geom_boxplot(mapping=aes(color=Treatment))  
+```
+
+
+##Ordination analysis
+
+```{r ordi setup, include=FALSE}
+##################
+# Ordination (temporal trends in community structure)
+##################
+
+#Place vars of interest into vectors for each component of ordination
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other") #comm matrix
+ENV <- c("centrality","dist.outlet","Treatment") #Constrains
+CONT <- c("bact.green") #Effect to partial out
+
+#Filter data as wanted (for bacteria need to use only rep A and B)
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B","C","D")) %>% 
+  mutate(Treatment = as.numeric(as.factor(Treatment)))
+
+#Create matrices for analyses 
+C <- decostand(X[,SP],"hell")
+E <- as.matrix(X[,ENV])
+Z <- as.matrix(X[,CONT])
+```
+
+```{r ordination}
+rda.mod <- rda(C ~ ., as.data.frame(E))
+rda.mod
+anova(rda.mod,by="terms",permu=200)
+```
+
+```{r ordination figs, echo=FALSE}
+colvec <- c("blue","green","red","black")
+ordiplot(rda.mod,display="site",type="n")
+text(rda.mod, display="cn", col="blue",cex=0.5)
+points(rda.mod, display="site", cex=0.5,pch=c(16, 17)[X$Treatment],col=colvec[as.factor(X$day)])
+#points(rda.mod, display="site", cex=0.8,pch=c(16, 2, 10)[as.factor(X$day)],col=c("red","blue")[as.factor(X$Treatment)])
+text(rda.mod, display="sp", col="blue",cex=1)
+legend("bottomleft",legend=c("day7","day15","day21","day29"),col=c("blue","green","red","black"),pch=16,bty="n",cex=0.5)
+legend("bottomright",legend=c("connected","isolated"),pch=c(1,2),bty="n",cex=0.5)
+text(5,2,labels = "Hellinger transformed",cex=0.5)
+```
+
+
+
