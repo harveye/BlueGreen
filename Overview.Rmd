@@ -1,9 +1,15 @@
 ---
-title: "Overview"
+title: "Overview of analysis for blue green part 2"
 author: "Eric"
 date: '2018-09-21'
 output: 
   html_document:
+    highlight: tango
+    theme: united
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
     keep_md: true
 ---
 
@@ -13,7 +19,8 @@ output:
 ##################
 library(tidyverse)
 library(vegan)
-library(png)
+library(RColorBrewer)
+library(gridExtra)
 
 ##################
 #Directory paths 
@@ -29,98 +36,228 @@ to.R <- "./output/"
 ##################
 data = readRDS(paste0(to.output,"cl.data.RDS"))
 
+w <- 10 
+h <- 5
 ```
 
 
-#Overview of analysis for blue-green part 2
+#Introduction
 
-## Main objectives
+##Main objective 
 
-The main objective of this project is to identify spatial feedbacks between two landscapes connected by resource spatial flow. 
+The main objective of this project is to identify spatial feedbacks between two complex landscapes connected by the exchange of resource (dead biomass). 
+
+#Methods
 
 ## Experimental design
 
-The design consisted of two landscapes: one 'blue' and one 'green' connected by the flow of dead biomass (microwaved protist and bacteria). Each landscape has 36 sites (50 mL falcon tubes). We have 5 replicates of those connected landscapes. Each blue landscape is a different realization of a dendritic network (i.e., the all follow the same geometric rules): 
+The design consisted of two landscapes: one 'blue' and one 'green' connected by the flow of dead biomass (microwaved protist and bacteria). Each landscape has 36 sites. We have 5 replicates of those connected landscapes. For the isolated landscapes we have 5 replicates of the blue landscape and 2 replicates of the green landscape (the green landscape is expected to be very homogeneous): Each blue landscape is a different realization of a dendritic network: 
 
-
-
-
+**Add figure here when I figure out how to do it!**
 
 Not represented on the image is a gradient in patch size from upstream to downstream patches (7.5, 13, 22.5, and 45 mL).
 
-while the green landscape are simple cartesian landscape: 
+while the green landscape are simpler cartesian landscapes representing movement in a more typical X-Y matrix and they are all 10 mL in volume: 
 
+**Add figure here when I figure out how to do it!**
 
+Importantly, in each landscape there was a dispersal dyanmic. Dispersal occurs at a fixed volume: 1mL exchanged per vertice in the blue landscape and 0.5 mL exchanged per connection for the green landscape (we assume lower dispersal in the green landscape compared to the blue one where physical flows are acting).
 
-Importantly, in each landscape there was a dispersal dyanmic. Dispersal occurs at a fixed volume: 1mL exchanged per vertice in the blue landscape and 0.5 mL exchanged per connection for the green landscape (we assume lower dispersal in the terrestrial landscape compared to the aquatic one where physical flows are acting).
+The exchange of resource (dead biomass) between the landscape is fixed at 1mL from blue to green and 1.25mL from green to blue. Diffusion is done by first sampling 1 mL from each blue ecosystems and 1.25 mL from each green ecosystem. These samples are then microwaved. Then following a cooling period, green samples are poured into corresponding blue ecosystem and blue samples are poured into corresponding green ecosystem. 
 
-The exchange between the landscape is fixed at 1mL. 
+##Sampling
+Sampling is done by pipetting a total of 0.5 mL from each ecosystem that will then be used to measure bacteria (0.100 mL) and protist densities (0.400 mL). Removing 0.5 mL from blue ecosystems will have different impacts depending on patch size. For this reason we will compensate this volume lost on a weekly basis by diffusing 0.25 mL more volume from the green to blue ecosystems (Diffusion is done 2 times/week, thus totally replacing the 0.5 mL). 
+
+##Timeline
+Sampling was done once week (~48 hours after the last diffusion/dispersal event), while diffusion and dispersal where done two times a week (~12 hours post sampling and ~72 hours post sampling). The experiment lasted a total of 29 days with sampling at day 0, 7, 15, 21, and 29. 
 
 ##Analytical pipeline
 
-##Preliminary figures
+Describe the analytical approaches use to reach the objective here
 
-```{r preliminary plots, warning=FALSE, echo=FALSE}
-ggplot(data=data,mapping=aes(x=Treatment,y=prot.rich)) +
-  geom_boxplot(mapping=aes(color=Treatment)) + 
-  facet_wrap(~ day,nrow=2)
+#Results
 
-ggplot(data=data,mapping=aes(x=bact.blue,y=prot.ab)) +
-  geom_point(mapping=aes(color=Treatment)) + 
-  facet_wrap(~ day,nrow=2)
+##Preliminary observations
 
-ggplot(data=data,mapping=aes(x=bact.blue,y=prot.rich)) +
-  geom_point(mapping=aes(color=Treatment)) + 
-  facet_wrap(~ day,nrow=2)
-
-ggplot(data=data,mapping=aes(x=bact.green,y=prot.ab)) +
-  geom_point(mapping=aes(color=Treatment)) + 
-  facet_wrap(~ day,nrow=2)
-
-ggplot(data=data,mapping=aes(x=as.factor(day),y=prot.ab)) +
-  geom_boxplot(mapping=aes(color=Treatment))  
+We know from a previous study using the same data from the same experiment that the dendritic network in the landscape did shape species richness (to see a mechanistic explanation of the pattern see Harvey et al., in revision)
+```{r alpha_patch_size, warning=FALSE, echo=FALSE, dpi=400, fig.width=3, fig.height=2}
+X <- data %>% 
+  filter(Treatment=="Isolated" & day == 29)
+ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.rich)) +
+  geom_boxplot(aes(fill=Size)) + xlab("Patch size") + ylab("Alpha richness") 
 ```
 
+Thus, the next interesting question is whether the effect of resource coming from the green landscape will change as a function of the position in the network. 
+
+###Total protist abundance and richness
+
+Let's see if we can detect any patterns using the more global metrics of total richness and abundance per patch.
+
+```{r size_treatment, warning=FALSE, echo=FALSE, fig.width=w, fig.height=h, dpi=400}
+X <- data %>% 
+  filter(day != 0) 
+ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.ab)) +
+  geom_boxplot(aes(color=Treatment)) + xlab("Patch size") + ylab("Protist abundance (ind/mL)") +
+  facet_wrap(~day) -> p1
+
+ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.rich)) +
+  geom_boxplot(aes(color=Treatment)) + xlab("Patch size") + ylab("Protist richness") +
+  facet_wrap(~day) -> p2
+grid.arrange(p1,p2,ncol=2)
+```
+
+At first sight, it seems like some things might be happening here. At day 7, 15 and 21 there seems to be higher protist abundance in isolated landscapes for patch of smaller (7.5 and 23) and very large (45) volumes, while for richness no pattern is obvious except for higher values in isolated patches of intermediate size (13 and 22.5) at day 21 and 29. 
+
+Patch size is but one indicator of the position in the network. Another widely used one is closeness centrality: 
+
+```{r centrality_treatment, warning=FALSE, echo=FALSE, fig.width=w, fig.height=h, dpi=400}
+X <- data %>% 
+  filter(day != 0) 
+ggplot(data=X,mapping=aes(x=centrality,y=prot.ab)) +
+  geom_point(aes(color=Treatment)) + xlab("Closeness centrality") + ylab("Protist abundance (ind/mL)") +
+  facet_wrap(~day) -> p1
+
+ggplot(data=X,mapping=aes(x=centrality,y=prot.rich)) +
+  geom_point(aes(color=Treatment)) + xlab("Closeness centrality") + ylab("Protist richness") +
+  facet_wrap(~day) -> p2
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+Those figures indicates that effects tend to vary in time and at least for richness and abundance are not very strong and might be hard to detect. One thing to keep in mind is that richness and total abundance are rather crude community metrics. Effects might instead species in different ways leading to changes in community composition. This is what we will explore in the next section. 
+
+###Bacteria connection 
+
+Since we are interested in the connection between the green and the blue landscape, it can be interesting to visually explore if bacteria density in the green is somehow associated to bacteria or protist density in the blue landsdcape (in theory they should be associated for the 'connected' treatment and not for the 'isolated treatment')
+
+```{r bacteria_blue_green, echo=FALSE, fig.height=h,fig.width=w, warning=FALSE, dpi=400}
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) 
+ggplot(data=X,mapping=aes(x=bact.green,y=bact.blue)) +
+  geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Bacteria in Blue landscape") +
+  facet_wrap(~ day,nrow=2) -> p1
+
+ggplot(data=X,mapping=aes(x=bact.green,y=prot.ab)) +
+  geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Protist density (ind/mL)") +
+  facet_wrap(~ day,nrow=2) -> p2
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+hmmm..not very convincing. Could those associations change as a function of the position in network? 
+
+```{r bacteria_blue_green_Size, echo=FALSE,fig.height=h,fig.width=w, warning=FALSE, dpi=400}
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) 
+ggplot(data=X,mapping=aes(x=bact.green,y=bact.blue)) +
+  geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Bacteria in Blue landscape") +
+  facet_wrap(~ as.factor(Size),nrow=2) -> p1
+
+ggplot(data=X,mapping=aes(x=bact.green,y=prot.ab)) +
+  geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Protist density (ind/mL)") +
+  facet_wrap(~ as.factor(Size),nrow=2) -> p2
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+Those preliminary figures are not very encouraging, however, the story might be more complex than it seems with the effects being more at the community composition level (affecting different species differently). Total protist abundance and richness cannot reflect that level of complexity.
+
+Next, let's use an ordination approach to explore those community level effects. 
 
 ##Ordination analysis
 
-```{r ordi setup, include=FALSE}
+```{r ordination setup, include=FALSE}
 ##################
 # Ordination (temporal trends in community structure)
 ##################
 
+#Create interaction variable
+data$Treat.Size <- interaction(data$Treatment,data$Size) 
+data$Treat.Day <- interaction(data$Treatment,data$day)
+data$Treat.Size.Day <- interaction(data$Treatment,data$Size,data$day)
+
 #Place vars of interest into vectors for each component of ordination
 SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other") #comm matrix
-ENV <- c("centrality","dist.outlet","Treatment") #Constrains
-CONT <- c("bact.green") #Effect to partial out
+ENV <- c("day.cont","centrality","Size","dist.outlet","Treatment","Treat.Size","Treat.Size.Day") #Constrains
+CONT <- c("day") #Effect to partial out
 
 #Filter data as wanted (for bacteria need to use only rep A and B)
 X <- data %>% 
   filter(day!=0 & Replicate %in% c("A","B","C","D")) %>% 
-  mutate(Treatment = as.numeric(as.factor(Treatment)))
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("0","7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.ordered(Size),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+         
 
 #Create matrices for analyses 
 C <- decostand(X[,SP],"hell")
-E <- as.matrix(X[,ENV])
+E <- X[,ENV]
 Z <- as.matrix(X[,CONT])
 ```
 
-```{r ordination}
+We will use an RDA analysis with those three main components:
+
+* Community matrix (C - Hellinger transformed)
+```{r, echo=F}
+head(C)
+```
+* Environmental matrix (E)
+```{r, echo=F}
+head(E)
+```
+* Conditioning matrix (Z)
+```{r}
+head(Z)
+```
+
+The model is on the general form:
+** C ~ E | Z **
+
+The original idea was to condition on time as a discrete factor, while including time as a continuous predictor in the main model. The goal was to control for random temporal variations while still measuring the effect of time as a fixed factor (this is a standard approach in mixed effect modeling). In any case, it made almost no differences so we dropped the Z term of the model. 
+
+So we ran the model:
+```{r run_ordination, echo=TRUE}
 rda.mod <- rda(C ~ ., as.data.frame(E))
 rda.mod
+```
+
+The model show that our environmental matrix explains roughly 31% of the variance, which is not amazing but not so bad.
+
+We then ran a permutation ANOVA on the terms: 
+```{r ordi_ANOVA, echo=T}
 anova(rda.mod,by="terms",permu=200)
 ```
 
-```{r ordination figs, echo=FALSE}
-colvec <- c("blue","green","red","black")
+Finally we can plot those results
+
+```{r ordination figs, echo=FALSE, dpi=400, warning=FALSE}
+#define color vectors for sampling days
+#display.brewer.all(nlevels(X$Treat.Size))
+colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
+#pchvec <- c(16,17,21)
+ordiplot(rda.mod,display="site",type="n")
+#text(rda.mod, display="cn", col="blue",cex=0.5)
+points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
+text(rda.mod, display="sp", col="blue",cex=1)
+legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
+#legend("bottomright",legend=levels(X$day),pch=pchvec,bty="n",cex=0.5)
+#ordihull(rda.mod,groups=X$Treatment,show.groups=levels(X$Treatment),col=c("blue","green"),label=F,lwd=1,lty=1)
+```
+```{r ordination fig 2, echo=FALSE, dpi=400, warning=FALSE}
+#define color vectors for sampling days
+#display.brewer.all(nlevels(X$Treat.Size))
+colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
+#pchvec <- c(16,17,21)
 ordiplot(rda.mod,display="site",type="n")
 text(rda.mod, display="cn", col="blue",cex=0.5)
-points(rda.mod, display="site", cex=0.5,pch=c(16, 17)[X$Treatment],col=colvec[as.factor(X$day)])
-#points(rda.mod, display="site", cex=0.8,pch=c(16, 2, 10)[as.factor(X$day)],col=c("red","blue")[as.factor(X$Treatment)])
+#points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
 text(rda.mod, display="sp", col="blue",cex=1)
-legend("bottomleft",legend=c("day7","day15","day21","day29"),col=c("blue","green","red","black"),pch=16,bty="n",cex=0.5)
-legend("bottomright",legend=c("connected","isolated"),pch=c(1,2),bty="n",cex=0.5)
-text(5,2,labels = "Hellinger transformed",cex=0.5)
+legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
+#legend("bottomright",legend=levels(X$day),pch=pchvec,bty="n",cex=0.5)
+#ordihull(rda.mod,groups=X$Treatment,show.groups=levels(X$Treatment),col=c("blue","green"),label=F,lwd=1,lty=1)
 ```
 
 
