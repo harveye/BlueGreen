@@ -1,0 +1,421 @@
+---
+title: "Analysis from Harvey et al., XXX"
+author: "Eric"
+date: '2018-09-21'
+output: 
+  html_document:
+    highlight: tango
+    theme: readable
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    keep_md: true
+---
+
+```{r setup, include=FALSE }
+##################
+#Load data in R environment
+##################
+library(tidyverse)
+library(vegan)
+library(RColorBrewer)
+library(gridExtra)
+library(nlme)
+
+##################
+#Directory paths 
+##################
+to.data <- "./data/"
+to.script <- "./scripts/"
+to.output <- "./output/"
+to.figs <- "./figs/"
+to.R <- "./output/"
+
+##################
+#Load data in R environment
+##################
+data = readRDS(paste0(to.output,"cl.data.RDS"))
+```
+
+# Analytical pipeline
+
+The main objective of this project is to identify spatial feedbacks between two landscapes connected by the pulse exchange of resource (see Methods section in the main article). More specifically we are interested in effects of the main treatment (resource pulse) that are dependant on the position in the spatial network. Thus although we are interested in the main effect of our resource pulse treatment, our focus is on the interaction term between patch size (indicates position in the dendritic network) and resource pulse treatment. 
+
+The analytical pipeline to achieve this objective can be synthesize as follow: 
+
+- Effects from green ecosystem to blue ecosystem
+  - On community composition
+  - On aggregate community metrics (species richness, total density)
+  
+- Effects from blue ecosystem to green ecosystem
+  - On aggregate bacteria metrics (total bacteria density)
+
+Visual explorations from the `Overview.Rmd` already strongly suggests no important effects on aggregate metrics, but significant effects on community composition. For the manuscript, we will thus start by exploring the effect of resource pulse from the green ecosystem to community composition in the blue ecosystem, and then how resource pulse from the blue ecosystem affects bacteria density in the green ecosystem. Those results constitute the core findings presented in the manuscript. At the end we will use statistical modelling to formally test effects on aggregate metrics in the blue ecosystem. 
+
+
+# Effect from Green to Blue ecosystem
+
+## Ordination
+
+```{r ordination setup, include=FALSE}
+##################
+# Ordination (temporal trends in community structure)
+##################
+
+#Create interaction variable
+data$Treat.Size <- interaction(data$Treatment,data$Size) 
+data$Treat.Day <- interaction(data$Treatment,data$day)
+data$Treat.Size.Day <- interaction(data$Treatment,data$Size,data$day)
+
+#Place vars of interest into vectors for each component of ordination
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other") #comm matrix
+ENV <- c("day.cont","centrality","Size","dist.outlet","Treatment","Treat.Size","Treat.Size.Day") #Constrains
+CONT <- c("Replicate") #Effect to partial out
+
+#Filter data as wanted (for bacteria need to use only rep A and B)
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B","C","D")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("0","7","15","21","29")),
+         day.cont = as.numeric(as.character(day)),
+         Size = as.ordered(Size),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+         
+
+#Create matrices for analyses 
+C <- decostand(X[,SP],"hell")
+E <- X[,ENV]
+Z <- as.matrix(X[,CONT])
+```
+
+We will use an RDA analysis with those three main components:
+
+* Community matrix (C - Hellinger transformed)
+```{r, echo=F}
+head(C)
+```
+* Environmental matrix (E)
+```{r, echo=F}
+head(E)
+```
+
+So we ran the model:
+```{r run_ordination, echo=TRUE}
+rda.mod <- rda(C ~ ., as.data.frame(E))
+rda.mod
+```
+
+The model show that our environmental matrix explains roughly 31% of the variance, which is not amazing but not so bad.
+
+We then ran a permutation ANOVA on the terms: 
+```{r ordi_ANOVA, echo=T}
+anova(rda.mod,by="terms",permu=200)
+```
+
+Here we can see that three variables are really standing out:
+
+* Change in time
+* Position in the landscape (centrality)
+* Treatment (connected vs. isolated)
+
+So it turns out that both the position in the landscape and resource pulse influence community position. Note that the interaction terms are also significant here indicating that the influence of the resource pulse on community composition vary as a function of the position in the network. The importance of these interaction terms in the model, however, remains fairly low compared to the main effects. 
+
+Let's explore this model visually
+
+```{r ordination figs, echo=FALSE, dpi=400, warning=FALSE}
+##define color vector
+#display.brewer.all(nlevels(X$Treat.Size))
+colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
+#pchvec <- c(16,17,21)
+
+##Plot
+ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
+#text(rda.mod, display="cn", col="blue",cex=0.5)
+points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
+text(rda.mod, display="sp", col="blue",cex=1)
+legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
+
+
+##Plot predictors
+ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
+text(rda.mod, display="cn", col="blue",cex=0.5)
+text(rda.mod, display="sp", col="blue",cex=1)
+```
+
+First looking at the predictors (arrows) on the second figure one can see that higher patch volume and high centrality values co-varies, which make sense since larger patches are generally more connected. In direct opposition (180 degrees on the figure) higher distance to outlet values are found which also make sense since smaller patches are mainly found upstream and thus further from the outlet. Orthogonal to this gradient (90 degree) is the effect of time. All the messy stuff in the middle represent the centroids of the unordered factors (interaction terms). The species scores are well distributed on the plot as a function of the different constraints. Keeping those constraints in mind, let's switch to the first figure. That figure shows the 'site' scores (microcosms) with the two colors identifying each microcosm as being part of a connected or an isolated blue ecosystem. From the model we know that the effect of the treatment is significant and relatively important. Here we can see that there is indeed some level of difference between sites in connected and isolated ecosystems.  
+
+Now in terms of interpretation, which requires to superpose both figures together, we can see that PCA and COL are more strongly associated with sites in connected ecosystem while Spi, Tet and Chi are associated with sites in isolated ecosystems. There are some interactions with other preditors though. For instance the figure suggest that PCA also became more abundant later in the experiment, while SPI was more abundant earlier suggesting some temporal community dynamics. Most interestingly, as mentionned, TET and CHI are associated with sites in isolated ecosystem, BUT also sites that tend to be more upstream in these ecosystems (smaller patch size more distant from the outlet). On the opposite ROT seems to be more associated to downstream sites (high centrality, high patch volume) independant of treatment or temporal aspect.
+
+## Log-ratio 
+
+Another useful way of representing those results is by using the log response ratio here defined has: 
+
+**LRR = log(Abundance~connected~/Abundance~isolated~)**
+
+with confidence interval: 
+
+**95CI = LRR +- 1.96 x SE(LRR)**
+
+In complementarity with the RDA model, let's look at the log response ratio of the different protist species to the main treatment. 
+
+```{r LRR calculation, include=FALSE}
+
+####Generate data for LRR calculation
+D <- data %>% 
+  filter(day !=0)
+
+####Create vectors with variables of interest 
+t <- c("7","15","21","29") 
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
+S <- c("7.5","13.0","22.5","45.0")
+
+####Replace zeros by the same very small value (to avoid INF and -INF in log ratio)
+min = 0.001
+D[,SP] <- lapply(D[,SP],function(x) ifelse(x==0,min,x))
+
+####Calculate LRR 
+
+output <- data.frame(time=character(0),size=character(0),LRR=numeric(0),SP=character(0))#[1:(144*length(SP)),]
+
+for(i in 1:length(t)){
+  for(j in 1:length(SP)) { 
+  
+    LRR <- log( D[which(D$Treatment=="Connected" & D$day==t[i]),SP[j]] / D[which(D$Treatment=="Isolated" & D$day==t[i]),SP[j]] )
+  
+  species <- rep(SP[j],144)
+  
+  time <- rep(t[i],144)
+  
+  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
+  
+  lala <- cbind(time,size,LRR,species)
+  colnames(lala) <- c("time","size","LRR","species")
+  
+  output <- rbind.data.frame(output,lala)
+  
+
+  }
+}
+```
+
+```{r LRR figure 1, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  filter(time!=0) %>% 
+  group_by(species) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,8),ylim=c(-2,2),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:8,labels=dat.lrr$species)
+  abline(h=0,lty=3)
+  arrows(1:8,dat.lrr$mean.lrr + dat.lrr$CI,1:8, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$species,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+This figure conveys very similar information to the RDA figure: PCA and COL tend to be more abundant in microcosms from connected ecosystems while CHI, TET and BLE tend to be more abundant in microcosms from isolated ecosystems. GREAT! 
+
+Now let's see if we can still detect the interaction with position in the network using patch size (which according to the RDA is the same as using distance to outlet or centrality): 
+
+
+```{r LRR figure 2, echo=FALSE, dpi=400}
+dat.lrr2 <- output %>% 
+  filter(time!=0) %>% 
+  group_by(size,species) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+S <- c(7.5,13,22.5,45)
+
+layout(matrix(1:4,ncol=2,nrow=2))
+
+#par(mfrow=c(2,2))
+for(i in 1:length(S)){ 
+ plot(NA,xlim=c(1,8),ylim=c(-4,3.5),main=paste(S[i],"mL"),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:8,labels=SP)
+  abline(h=0,lty=3)
+  arrows(1:8,dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] + dat.lrr2$CI[dat.lrr2$size==S[i]],1:8, dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] - dat.lrr2$CI[dat.lrr2$size==S[i]],angle=90,code=3,length=0.05)
+  points(dat.lrr2$species[dat.lrr2$size==S[i]],dat.lrr2$mean.lrr[dat.lrr2$size==S[i]],pch=16)
+   }
+
+
+  
+```
+
+Again, the same information is conveyed. We do see the interaction with PCA and COL being more abundant in the upstream (smaller volume) of the connected ecosystem, and CHI and TET being more abundant in the upstream (smaller volume) patches of the isolated ecosystem. For CHI this is also true for intermediate patch sizes.
+
+## Preliminary conclusion
+The results presented above suggest that: 
+
+* Resource pulse from the green ecosystem does affect the structre of the community in the blue ecosystem by selecting for and againts some species
+* This effect depend on the position in the blue spatial network and tend to be stronger in smaller, more isolated patches (based on patch volume, centrality and distance to the outlet)
+
+# Effect from Blue to Green ecosystem
+
+Here the main question of interest is whether we can see imprint of what was going on in the blue ecosystem. Using the log ratio approach seems to be one of the best way to visualize those effects: 
+
+## Log-ratio
+
+```{r green LRR calculation, include=FALSE}
+####Generate data for LRR calculation
+D <- data %>% 
+  filter(day !=0 & Replicate %in% c("A","B"))
+
+####Create vectors with variables of interest 
+t <- c("7","15","21","29") 
+S <- c("7.5","13.0","22.5","45.0")
+
+####Calculate LRR 
+
+output <- data.frame(time=character(0),size=character(0),LRR=numeric(0))#[1:(144*length(SP)),]
+
+for(i in 1:length(t)){
+  
+    LRR <- log( D$bact.green[which(D$Treatment=="Connected" & D$day==t[i])] / D$bact.green[which(D$Treatment=="Isolated" & D$day==t[i])] )
+  
+  time <- rep(t[i],72)
+  
+  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
+  
+  lala <- cbind(time,size,LRR)
+  colnames(lala) <- c("time","size","LRR")
+  
+  output <- rbind.data.frame(output,lala)
+  
+}
+
+
+```
+
+```{r LRR Green figure 1, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  mutate(LRR = as.numeric(as.character(LRR))) %>% 
+  group_by(time) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,4),ylim=c(-1,1),xlab="Exp. time",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=dat.lrr$time)
+  abline(h=0,lty=3)
+  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$time,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+
+So there is a tendancy for bacteria density in the green ecosystem to be higher when connected to the blue ecosystem versus isolated controls. The strongest effect is observed on day 21. Let's see if we can detect any interactions, even weak, with the position in the blue ecosystem:
+
+```{r LRR Green figure 2, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  filter(time==21) %>% #The previous graph showed that the effect if stronger at day 21
+  mutate(LRR = as.numeric(as.character(LRR))) %>% 
+  group_by(size) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,4),ylim=c(-1.5,1.5),xlab="Patch size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=dat.lrr$size)
+  abline(h=0,lty=3)
+  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$size,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+Interestingly, the positive effect of being connected to the blue ecosystem is especially strong for the green patches that were connected with a small volume upstream site in the blue ecosystem. Here this figure is only showing day 21 which is the day where the effect of the treatment was strongest according to the previous figure, but the effect is also significant (LRR > 0) although smaller when averaging across all time periods. 
+
+# Conclusion
+
+Main conclusions:
+
+* The effect of resource pulse on the blue ecosystem depends on the position in the spatial network
+* This network mediated effect also feed back on the green ecosystem 
+* Upstream (smaller volume, higher distance to outlet and lower centrality) sites are key to this spatial feedback as they are the most responsive to resource pulse and probably most dependant on those resource pulse. 
+
+# Addendum: aggregate community metrics
+
+Visual exploration from the `Overview.Rmd` already strongly suggests no effects on aggregate metrics. We will here use mixed effects modeling to directly test effects on bacteria and protist densities, and protist species richness. We will then see if those results can inform or not our main results presented above.  
+
+* Effect of resource pulse from Green ecosystem on Bacteria density in Blue ecosystem
+```{r nlme_blue_bact, echo=TRUE}
+# Filter data (bacteria were only measured for replicates A and B)
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("0","7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.ordered(Size),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+# Run model
+Mod1 <- nlme:::lme(log(bact.blue) ~ Size*Treatment + bact.green + day.cont, 
+                   random = ~ day|Replicate, data=X,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+```
+
+Let's visualize print out the t Table
+```{r nlme_blue_bact_results, echo=FALSE}
+summary(Mod1)$tTable
+```
+_please note that because Size is ordered, the intercept here represents the MEAN factor level and not the baseline level (Size=7.5)_
+
+We can see that three effects come as statistically significant: 
+- Size (the linear term, but not the quadratic and cubic): linear decline with increasing patch size
+- Treatment: small increase of bacteria in isolated versus connected ecosystems
+- Day: average increases of bacteria density over experimental time
+
+The results with patch size indicates that it can be reduced to its linear component and can be visualized as such:
+
+```{r nlme_blue_bact_linear, include=FALSE}
+# Filter data (bacteria were only measured for replicates A and B)
+X1 <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("0","7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.numeric(as.character(Size)),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+
+# Generate data frame with each predictor to extract predictions
+newdat <-  with(X1,
+                 expand.grid(Treatment=unique(Treatment),
+                             Size = c(min(Size),max(Size)),
+                             bact.green=c(min(bact.green),max(bact.green)),
+                             day.cont = c(min(day.cont),max(day.cont)))
+                  )
+
+# Run model
+Mod1.1 <- nlme:::lme(log(bact.blue) ~ Size*Treatment + bact.green + day.cont, 
+                   random = ~ day|Replicate, data=X1,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+```
+
+```{r nlme_blue_bact_figure, echo=TRUE}
+
+ggplot(mapping=aes(x=Size,y=log(bact.blue)),data=X1) +
+  geom_point(col="blue",alpha=0.5) +
+  geom_line(data=newdat,aes(y=predict(Mod1.1,newdata=newdat,level=0)),col="red") -> p1
+
+ggplot(mapping=aes(x=Treatment,y=log(bact.blue)),data=X1) +
+  geom_boxplot(col="blue",alpha=0.5) -> p2
+
+ggplot(mapping=aes(x=day.cont,y=log(bact.blue)),data=X1) +
+  geom_point(col="blue",alpha=0.5) +
+  geom_line(data=newdat,aes(y=predict(Mod1.1,newdata=newdat,level=0)),col="red") -> p3
+
+grid.arrange(p1,p2,p3,ncol=3)
+
+```
+
+* Effect of resource pulse from Green ecosystem on protist density in Blue ecosystem
+
+

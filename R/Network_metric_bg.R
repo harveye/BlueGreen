@@ -93,7 +93,7 @@ Green.g = graph_from_adjacency_matrix(Green.m, mode = "undirected", weighted = N
 
 # #. Visualize each replicate 
 #Rep1
-png(paste(to.figs,"RepA.jpg"))
+png(paste(to.figs,"RepA.png"))
 coords1 <- layout_on_grid(RepA.g,width=6,height=6) #set the rectangular layout
 coords1[,2] <- max(coords1[,2])-coords1[,2] #Inverse the Y position
 plot.igraph(RepA.g,layout=coords1) #plot

@@ -5,10 +5,10 @@ date: '2018-09-21'
 output: 
   html_document:
     highlight: tango
-    theme: united
-    toc: true
+    theme: readable
+    toc: false
     toc_float:
-      collapsed: false
+      collapsed: true
       smooth_scroll: false
     keep_md: true
 ---
@@ -41,45 +41,55 @@ h <- 5
 ```
 
 
-#Introduction
+# Introduction
 
-##Main objective 
+## Main objective 
 
-The main objective of this project is to identify spatial feedbacks between two complex landscapes connected by the exchange of resource (dead biomass). 
+The main objective of this project is to identify spatial feedbacks between two landscapes connected by the pulse exchange of resource (dead biomass). 
 
-#Methods
+# Methods
 
 ## Experimental design
 
-The design consisted of two landscapes: one 'blue' and one 'green' connected by the flow of dead biomass (microwaved protist and bacteria). Each landscape has 36 sites. We have 5 replicates of those connected landscapes. For the isolated landscapes we have 5 replicates of the blue landscape and 2 replicates of the green landscape (the green landscape is expected to be very homogeneous): Each blue landscape is a different realization of a dendritic network: 
+The design consisted of two landscapes: one 'blue' and one 'green' connected by fluxes of dead biomass (microwaved protist and bacteria). Each landscape is composed of 36 patches (falcon tubes) connected by dispersal (see figures below). We have 5 replicates of those connected landscapes. We also had isolated landsapes as controls replicated 5 times for the blue landscape and 2 times of the green landscape (the green landscape is expected to be more homogeneous). Each blue landscape is a different realization of a dendritic network, thus altough they have different shape they all follow the same properties: 
 
-**Add figure here when I figure out how to do it!**
+**Add figure here!**
+
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics(paste0(to.figs,"Green_landscape.pdf"))
+```
 
 Not represented on the image is a gradient in patch size from upstream to downstream patches (7.5, 13, 22.5, and 45 mL).
 
-while the green landscape are simpler cartesian landscapes representing movement in a more typical X-Y matrix and they are all 10 mL in volume: 
+The green landscapes are simpler cartesian landscapes representing movement in a more typical X-Y matrix and they are all 10 mL in volume: 
 
-**Add figure here when I figure out how to do it!**
+**Add figure here!**
 
 Importantly, in each landscape there was a dispersal dyanmic. Dispersal occurs at a fixed volume: 1mL exchanged per vertice in the blue landscape and 0.5 mL exchanged per connection for the green landscape (we assume lower dispersal in the green landscape compared to the blue one where physical flows are acting).
 
-The exchange of resource (dead biomass) between the landscape is fixed at 1mL from blue to green and 1.25mL from green to blue. Diffusion is done by first sampling 1 mL from each blue ecosystems and 1.25 mL from each green ecosystem. These samples are then microwaved. Then following a cooling period, green samples are poured into corresponding blue ecosystem and blue samples are poured into corresponding green ecosystem. 
+The exchange of resource (dead biomass) between the landscape is fixed at 1mL from blue to green and 1.25mL from green to blue. Diffusion is done by first sampling 1 mL from each blue ecosystems and 1.25 mL from each green ecosystem. These samples are then microwaved. Then following a cooling period, green samples are poured into corresponding blue ecosystem and blue samples are poured into corresponding green ecosystem.
 
-##Sampling
+## Biotic component
+
+At the beginning of the experiment each patch of the blue landscape was seeded with the same mixture of 8 protist species and bacteria. Patches in the green landscape only contains bacteria. This reduces the complexity by allowing us to focus on the influence of resource pulse from the green landscape on community dynamic in the blue landscape, and, in turn, how those dynamics along the dendritic network in the blue landscape might affect the spatial distribution of bacteria density in the green landscape compared to controls. 
+
+## Sampling
 Sampling is done by pipetting a total of 0.5 mL from each ecosystem that will then be used to measure bacteria (0.100 mL) and protist densities (0.400 mL). Removing 0.5 mL from blue ecosystems will have different impacts depending on patch size. For this reason we will compensate this volume lost on a weekly basis by diffusing 0.25 mL more volume from the green to blue ecosystems (Diffusion is done 2 times/week, thus totally replacing the 0.5 mL). 
 
-##Timeline
-Sampling was done once week (~48 hours after the last diffusion/dispersal event), while diffusion and dispersal where done two times a week (~12 hours post sampling and ~72 hours post sampling). The experiment lasted a total of 29 days with sampling at day 0, 7, 15, 21, and 29. 
+## Timeline
+Sampling was done once a week (~48 hours after the last diffusion/dispersal event), while diffusion and dispersal where done two times a week (~12 hours post sampling and ~72 hours post sampling). The experiment lasted a total of 29 days with sampling at day 0, 7, 15, 21, and 29. 
 
-##Analytical pipeline
+## Analytical pipeline
 
 Describe the analytical approaches use to reach the objective here
 
-#Results
+# Results
 
-##Preliminary observations
+## GREEN to BLUE landscape
 
-We know from a previous study using the same data from the same experiment that the dendritic network in the landscape did shape species richness (to see a mechanistic explanation of the pattern see Harvey et al., in revision)
+### Preliminary observations
+
+We know from a previous study using the same data from the same experiment that the dendritic network in the blue landscape in itself did shape species richness (to see a mechanistic explanation of the pattern see Harvey et al., in revision)
 ```{r alpha_patch_size, warning=FALSE, echo=FALSE, dpi=400, fig.width=3, fig.height=2}
 X <- data %>% 
   filter(Treatment=="Isolated" & day == 29)
@@ -89,20 +99,21 @@ ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.rich)) +
 
 Thus, the next interesting question is whether the effect of resource coming from the green landscape will change as a function of the position in the network. 
 
-###Total protist abundance and richness
+#### Total protist abundance and alpha richness
 
-Let's see if we can detect any patterns using the more global metrics of total richness and abundance per patch.
+Let's see if we can detect any patterns using patch size as a proxy of the position in network:
 
 ```{r size_treatment, warning=FALSE, echo=FALSE, fig.width=w, fig.height=h, dpi=400}
 X <- data %>% 
   filter(day != 0) 
+labels <- c("7" = "day 7", "15" = "day 15", "21" = "day 21", "29" = "day 29")
 ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.ab)) +
   geom_boxplot(aes(color=Treatment)) + xlab("Patch size") + ylab("Protist abundance (ind/mL)") +
-  facet_wrap(~day) -> p1
+  facet_wrap(~day, labeller=labeller(day=labels)) -> p1
 
 ggplot(data=X,mapping=aes(x=as.factor(Size),y=prot.rich)) +
   geom_boxplot(aes(color=Treatment)) + xlab("Patch size") + ylab("Protist richness") +
-  facet_wrap(~day) -> p2
+  facet_wrap(~day, labeller= labeller(day=labels)) -> p2
 grid.arrange(p1,p2,ncol=2)
 ```
 
@@ -113,33 +124,37 @@ Patch size is but one indicator of the position in the network. Another widely u
 ```{r centrality_treatment, warning=FALSE, echo=FALSE, fig.width=w, fig.height=h, dpi=400}
 X <- data %>% 
   filter(day != 0) 
+labels <- c("7" = "day 7", "15" = "day 15", "21" = "day 21", "29" = "day 29")
 ggplot(data=X,mapping=aes(x=centrality,y=prot.ab)) +
   geom_point(aes(color=Treatment)) + xlab("Closeness centrality") + ylab("Protist abundance (ind/mL)") +
-  facet_wrap(~day) -> p1
+  facet_wrap(~day, labeller=labeller(day=labels)) -> p1
 
 ggplot(data=X,mapping=aes(x=centrality,y=prot.rich)) +
   geom_point(aes(color=Treatment)) + xlab("Closeness centrality") + ylab("Protist richness") +
-  facet_wrap(~day) -> p2
+  facet_wrap(~day, labeller=labeller(day=labels)) -> p2
 
 grid.arrange(p1,p2,ncol=2)
 ```
 
-Those figures indicates that effects tend to vary in time and at least for richness and abundance are not very strong and might be hard to detect. One thing to keep in mind is that richness and total abundance are rather crude community metrics. Effects might instead species in different ways leading to changes in community composition. This is what we will explore in the next section. 
+So it seems like closeness centrality does affect protist abundance and richness, however the effect does not seem to vary as a function of whether the blue landscape is connected or not by resource pulse. Also the strenght of the effect varies in time. One thing to keep in mind is that richness and total abundance are rather crude community metrics. Effects might instead affect species in different ways leading to changes in community composition. This is what we will explore in the next section, but before let's look at bacteria! 
 
-###Bacteria connection 
+#### Bacteria connection
 
 Since we are interested in the connection between the green and the blue landscape, it can be interesting to visually explore if bacteria density in the green is somehow associated to bacteria or protist density in the blue landsdcape (in theory they should be associated for the 'connected' treatment and not for the 'isolated treatment')
 
 ```{r bacteria_blue_green, echo=FALSE, fig.height=h,fig.width=w, warning=FALSE, dpi=400}
 X <- data %>% 
   filter(day!=0 & Replicate %in% c("A","B")) 
+
+labels <- c("7" = "day 7", "15" = "day 15", "21" = "day 21", "29" = "day 29")
+
 ggplot(data=X,mapping=aes(x=bact.green,y=bact.blue)) +
   geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Bacteria in Blue landscape") +
-  facet_wrap(~ day,nrow=2) -> p1
+  facet_wrap(~ day,labeller = labeller(day = labels), nrow=2) -> p1
 
 ggplot(data=X,mapping=aes(x=bact.green,y=prot.ab)) +
   geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Protist density (ind/mL)") +
-  facet_wrap(~ day,nrow=2) -> p2
+  facet_wrap(~ day, labeller = labeller(day = labels),nrow=2) -> p2
 
 grid.arrange(p1,p2,ncol=2)
 ```
@@ -149,13 +164,16 @@ hmmm..not very convincing. Could those associations change as a function of the 
 ```{r bacteria_blue_green_Size, echo=FALSE,fig.height=h,fig.width=w, warning=FALSE, dpi=400}
 X <- data %>% 
   filter(day!=0 & Replicate %in% c("A","B")) 
+
+labels <- c("7.5" = "7.5 mL", "13" = "13 mL", "22.5" = "22.5 mL" , "45" = "45 mL")
+
 ggplot(data=X,mapping=aes(x=bact.green,y=bact.blue)) +
   geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Bacteria in Blue landscape") +
-  facet_wrap(~ as.factor(Size),nrow=2) -> p1
+  facet_wrap(~ Size,labeller = labeller(Size = labels),nrow=2) -> p1
 
 ggplot(data=X,mapping=aes(x=bact.green,y=prot.ab)) +
   geom_point(mapping=aes(color=Treatment)) + xlab("Bacteria in Green landscape") + ylab("Protist density (ind/mL)") +
-  facet_wrap(~ as.factor(Size),nrow=2) -> p2
+  facet_wrap(~ Size,labeller = labeller(Size=labels),nrow=2) -> p2
 
 grid.arrange(p1,p2,ncol=2)
 ```
@@ -164,7 +182,7 @@ Those preliminary figures are not very encouraging, however, the story might be 
 
 Next, let's use an ordination approach to explore those community level effects. 
 
-##Ordination analysis
+### Ordination analysis
 
 ```{r ordination setup, include=FALSE}
 ##################
@@ -179,7 +197,7 @@ data$Treat.Size.Day <- interaction(data$Treatment,data$Size,data$day)
 #Place vars of interest into vectors for each component of ordination
 SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other") #comm matrix
 ENV <- c("day.cont","centrality","Size","dist.outlet","Treatment","Treat.Size","Treat.Size.Day") #Constrains
-CONT <- c("day") #Effect to partial out
+CONT <- c("Replicate") #Effect to partial out
 
 #Filter data as wanted (for bacteria need to use only rep A and B)
 X <- data %>% 
@@ -216,10 +234,11 @@ head(Z)
 The model is on the general form:
 ** C ~ E | Z **
 
-The original idea was to condition on time as a discrete factor, while including time as a continuous predictor in the main model. The goal was to control for random temporal variations while still measuring the effect of time as a fixed factor (this is a standard approach in mixed effect modeling). In any case, it made almost no differences so we dropped the Z term of the model. 
+The original idea was to condition on time as a discrete factor, while including time as a continuous predictor in the main model. The goal was to control for random temporal variations while still measuring the linear log-transformed effect of time as a fixed factor (while saving degrees of freedom - this is a standard approach in mixed effect modeling). In any case, it made almost no differences so we dropped the Z term of the model. 
 
 So we ran the model:
 ```{r run_ordination, echo=TRUE}
+#rda.mod <- rda(C ~ day.cont + centrality + Size + dist.outlet + Treatment + Treat.Size + Treat.Size.Day + Condition(Z), data=E)
 rda.mod <- rda(C ~ ., as.data.frame(E))
 rda.mod
 ```
@@ -231,34 +250,294 @@ We then ran a permutation ANOVA on the terms:
 anova(rda.mod,by="terms",permu=200)
 ```
 
-Finally we can plot those results
+Here we can see that three variables are really standing out: 
+* Change in time
+* Position in the landscape (centrality)
+* Treatment (connected vs. isolated)
+
+So it turns out that both the position in the landscape and resource pulse influence community position. Note that the interaction terms are also significant here indicating that the influence of the resource pulse on community composition vary as a function of the position in the network. The importance of these interaction terms in the model, however, remains fairly low compared to the main effects. 
+
+Let's explore this model visually
 
 ```{r ordination figs, echo=FALSE, dpi=400, warning=FALSE}
-#define color vectors for sampling days
+##define color vector
 #display.brewer.all(nlevels(X$Treat.Size))
 colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
 #pchvec <- c(16,17,21)
-ordiplot(rda.mod,display="site",type="n")
+
+##Plot
+ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
 #text(rda.mod, display="cn", col="blue",cex=0.5)
 points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
 text(rda.mod, display="sp", col="blue",cex=1)
 legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
 #legend("bottomright",legend=levels(X$day),pch=pchvec,bty="n",cex=0.5)
 #ordihull(rda.mod,groups=X$Treatment,show.groups=levels(X$Treatment),col=c("blue","green"),label=F,lwd=1,lty=1)
-```
-```{r ordination fig 2, echo=FALSE, dpi=400, warning=FALSE}
-#define color vectors for sampling days
-#display.brewer.all(nlevels(X$Treat.Size))
-colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
-#pchvec <- c(16,17,21)
-ordiplot(rda.mod,display="site",type="n")
+
+##Plot predictors
+ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
 text(rda.mod, display="cn", col="blue",cex=0.5)
-#points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
 text(rda.mod, display="sp", col="blue",cex=1)
-legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
-#legend("bottomright",legend=levels(X$day),pch=pchvec,bty="n",cex=0.5)
-#ordihull(rda.mod,groups=X$Treatment,show.groups=levels(X$Treatment),col=c("blue","green"),label=F,lwd=1,lty=1)
 ```
 
+First looking at the predictors (arrows) on the second figure one can see that higher patch volume and high centrality values are associated, which make sense since larger patches are generally more connected. In direct opposition (180 degrees) lower patch volume and higher distance to outlet values are strongly associated which also make sense since smaller patches are mainly found upstream and thus further from the outlet. Orthogonal to this gradient (90 degree) is the effect of time. All the messy stuff in the middle represent the centroids of the unordered factors (interaction terms). The species scores are well distributed on the plot as a function of the different constraints. Keeping those constraints in mind, let's switch to the first figure. That figure shows the 'site' scores (microcosms) with the two colors identifying each microcosm as being part of a connected or an isolated blue landscape. From the model we know that the effect of the treatment is significant and relatively important. Here we can see that there is indeed some level of difference between sites in connected and isolated landscapes.  
+
+Now in terms of interpretation, which requires to superpose both figures together, we can see that PCA and COL are more strongly associated with sites in connected landscape while Spi, Tet and Chi are associated with sites in isolated landscapes. There are some interactions with other preditors though. For instance the figure suggest that PCA also became more abundant later in the experiment, while SPI was more about earlier suggesting some temporal community dynamics. Most interestingly, as mentionned TET and CHI are associated with sites in isolated landscape, BUT also sites that tend to be more upstream in these landscapes (smaller patch size more distant from the outlet). On the opposite ROT seems to be more associated to downstream sites (high centrality, high patch volume) independant of treatment or temporal aspect.
+
+## Log-ratio 
+
+Another useful way of representing those results is by using the log response ratio here defined has: 
+
+**LRR = log(Abundance~connected~/Abundance~isolated~)**
+
+with confidence interval: 
+
+**95CI = LRR +- 1.96 x SE(LRR)**
+
+In complementarity with the RDA model, let's look at the log response ratio of the different protist species to the main treatment. 
+
+```{r LRR calculation, include=FALSE}
+
+####Generate data for LRR calculation
+D <- data %>% 
+  filter(day !=0)
+
+####Create vectors with variables of interest 
+t <- c("7","15","21","29") 
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
+S <- c("7.5","13.0","22.5","45.0")
+
+####Replace zeros by the same very small value (to avoid INF and -INF in log ratio)
+min = 0.001
+D[,SP] <- lapply(D[,SP],function(x) ifelse(x==0,min,x))
+
+####Calculate LRR 
+
+output <- data.frame(time=character(0),size=character(0),LRR=numeric(0),SP=character(0))#[1:(144*length(SP)),]
+
+for(i in 1:length(t)){
+  for(j in 1:length(SP)) { 
+  
+    LRR <- log( D[which(D$Treatment=="Connected" & D$day==t[i]),SP[j]] / D[which(D$Treatment=="Isolated" & D$day==t[i]),SP[j]] )
+  
+  species <- rep(SP[j],144)
+  
+  time <- rep(t[i],144)
+  
+  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
+  
+  lala <- cbind(time,size,LRR,species)
+  colnames(lala) <- c("time","size","LRR","species")
+  
+  output <- rbind.data.frame(output,lala)
+  
+
+  }
+}
+```
+
+```{r LRR figure 1, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  filter(time!=0) %>% 
+  group_by(species) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,8),ylim=c(-2,2),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:8,labels=dat.lrr$species)
+  abline(h=0,lty=3)
+  arrows(1:8,dat.lrr$mean.lrr + dat.lrr$CI,1:8, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$species,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+This figure conveys very similar information to the RDA figure: PCA and COL tend to be more abundanct in microcosms from connected landscapes while CHI, TET and BLE tend to be more abundant in microcosms from isolated lansdscapes. GREAT! 
+
+Now let's see if we can still detect the interaction with position in the network using patch size (which according to the RDA is the same as using distance to outlet or centrality): 
+
+
+```{r LRR figure 2, echo=FALSE, dpi=400}
+dat.lrr2 <- output %>% 
+  filter(time!=0) %>% 
+  group_by(size,species) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+S <- c(7.5,13,22.5,45)
+
+layout(matrix(1:4,ncol=2,nrow=2))
+
+#par(mfrow=c(2,2))
+for(i in 1:length(S)){ 
+ plot(NA,xlim=c(1,8),ylim=c(-4,3.5),main=paste(S[i],"mL"),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:8,labels=SP)
+  abline(h=0,lty=3)
+  arrows(1:8,dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] + dat.lrr2$CI[dat.lrr2$size==S[i]],1:8, dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] - dat.lrr2$CI[dat.lrr2$size==S[i]],angle=90,code=3,length=0.05)
+  points(dat.lrr2$species[dat.lrr2$size==S[i]],dat.lrr2$mean.lrr[dat.lrr2$size==S[i]],pch=16)
+   }
+
+
+  
+```
+
+Again, the same information is conveyed. We do see the interaction with PCA and COL being more abundant in the upstream (smaller volume) of the connected landscape, and CHI and TET being more abundant in the upstream (smaller volume) patches of the isolated landscape. For CHI this is also true for intermediate patch sizes.
+
+## Preliminary conclusion
+The results presented above suggest that: 
+
+* Resource pulse from the green landscape does not influence aggregate metrics such as richness and total abundance
+* It does however affect the structre of the community by selecting for and againts some species
+* This effect depend on the position in blue network and tend to be stronger in smaller, more isolated patches (based on patch volume, centrality and distance to the outlet)
+
+## Temporal lag
+
+Let's come back to this idea of the 'bacteria' connection that was discussed in the preliminary observation section. So far we can demonstrate effects from the green to the blue landscape but we can't identify where the effect comes from. If it does not come from the bacteria biomass then it could be from the transfer of organic or inorganic nutrients in medium which we did not measure. Before we give up, however, let's try to get at the temporal lag idea. 
+
+In the preliminary figure above we've been looking at the association between bacteria in the blue and green landscape for the same time point. In a way there is no reasons to assume an association rather it would make more sense if the bacteria or the protist in the blue landscape at T1 are associated with bacteria in the Green landscape at T-1, right? Let's explore this visually
+
+```{r temp lag fig, echo=FALSE, warning=FALSE, fig.height=h, fig.width=10, dpi=400}
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) 
+
+ggplot(mapping=aes(x=X$bact.green[X$day==7],y=X$bact.blue[X$day==15])) +
+  geom_point(mapping=aes(color=X$Treatment[X$day==7])) + xlab("Bacteria in Green landscape at T7") + ylab("Bacteria in Blue landscape at T15") -> p1
+
+ggplot(mapping=aes(x=X$bact.green[X$day==15],y=X$bact.blue[X$day==21])) +
+  geom_point(mapping=aes(color=X$Treatment[X$day==7])) + xlab("Bacteria in Green landscape at T15") + ylab("Bacteria in Blue landscape at T21") -> p2
+
+ggplot(mapping=aes(x=X$bact.green[X$day==21],y=X$bact.blue[X$day==29])) +
+  geom_point(mapping=aes(color=X$Treatment[X$day==7])) + xlab("Bacteria in Green landscape at T21") + ylab("Bacteria in Blue landscape at T29") -> p3
+
+grid.arrange(p1,p2,p3,ncol=2)
+
+```
+
+Not so promising! 
+
+## BLUE to GREEN landscape
+
+Here the main question of interest is whether we can see imprint of what was going on in the blue landscape. Using the log ratio approach seems to be one of the best way to visualize those effects: 
+
+```{r green LRR calculation, include=FALSE}
+####Generate data for LRR calculation
+D <- data %>% 
+  filter(day !=0 & Replicate %in% c("A","B"))
+
+####Create vectors with variables of interest 
+t <- c("7","15","21","29") 
+S <- c("7.5","13.0","22.5","45.0")
+
+####Calculate LRR 
+
+output <- data.frame(time=character(0),size=character(0),LRR=numeric(0))#[1:(144*length(SP)),]
+
+for(i in 1:length(t)){
+  
+    LRR <- log( D$bact.green[which(D$Treatment=="Connected" & D$day==t[i])] / D$bact.green[which(D$Treatment=="Isolated" & D$day==t[i])] )
+  
+  time <- rep(t[i],72)
+  
+  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
+  
+  lala <- cbind(time,size,LRR)
+  colnames(lala) <- c("time","size","LRR")
+  
+  output <- rbind.data.frame(output,lala)
+  
+}
+
+
+```
+
+```{r LRR Green figure 1, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  mutate(LRR = as.numeric(as.character(LRR))) %>% 
+  group_by(time) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,4),ylim=c(-1,1),xlab="Exp. time",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=dat.lrr$time)
+  abline(h=0,lty=3)
+  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$time,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+So there is a tendancy for bacteria density in the green landscape to be higher when connected to the blue landscape versus isolated controls. The strongest effect is observed on day 21. Let's see if we can detect any interactions, even weak, with the position in the blue landscape: 
+
+
+```{r LRR Green figure 2, echo=FALSE, dpi=400}
+dat.lrr <- output %>% 
+  filter(time==21) %>% #The previous graph showed that the effect if stronger at day 21
+  mutate(LRR = as.numeric(as.character(LRR))) %>% 
+  group_by(size) %>% 
+  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
+            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+
+
+
+plot(NA,xlim=c(1,4),ylim=c(-1.5,1.5),xlab="Patch size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+  axis(1,at=1:4,labels=dat.lrr$size)
+  abline(h=0,lty=3)
+  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
+  points(dat.lrr$size,dat.lrr$mean.lrr,pch=16)
+  
+```
+
+Interestingly, the positive effect of being connected to the blue landscape is especially strong for the green patches that were connected with a small volume upstream site in the blue landscape. Here this figure is only showing day 21 which is the day where the effect of the treatment was strongest according to the previous figure, but the effect is also significant although smaller when averaging across all time periods. 
+
+# Conclusion
+
+Main conclusion:
+
+* The effect of resource pulse on the blue landscape depends on the position in the network
+* This network mediated effect also feed back on the green landscape 
+* Upstream (smaller volume, higher distance to outlet and lower centrality) sites are key to this spatial feedback has they are the most responsive to resource pulse and probably most dependant on those resource pulse. 
+
+
+```{r, include=FALSE, eval==FALSE}
+X <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B") & Treatment=="Connected" & Size %in% c(7.5,13)) 
+
+
+ggplot(data=X,mapping=aes(x=Rot,y=bact.green)) +
+  geom_point() + xlab("Rot density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Col,y=bact.green)) +
+  geom_point() + xlab("Col density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Spi,y=bact.green)) +
+  geom_point() + xlab("Spi density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Ble,y=bact.green)) +
+  geom_point() + xlab("Ble density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Pca,y=bact.green)) +
+  geom_point() + xlab("Pca density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Col,y=bact.green)) +
+  geom_point() + xlab("Col density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+ggplot(data=X,mapping=aes(x=Chi,y=bact.green)) +
+  geom_point() + xlab("Chi density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2)
+
+ggplot(data=X,mapping=aes(x=Tet,y=bact.green)) +
+  geom_point() + xlab("Tet density") + ylab("Bacteria in Green landscape") +
+  facet_wrap(~ day,nrow=2) 
+
+```
 
 
