@@ -19,6 +19,6 @@
    - output: Counts by species (the script runs the SVM model to ID species)
 
 ### Markdown files: 
-- Overview.Rmd : A notebook documenting the analyatical process
-- Final_analysis.Rmd : Document the analytical pipeline describes in the article
+- Overview.Rmd : A notebook documenting all exploratory analyses
+- Final_analysis.Rmd : Document only the analytical pipeline from the article
 

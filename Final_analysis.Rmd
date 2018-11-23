@@ -69,7 +69,7 @@ data$Treat.Day <- interaction(data$Treatment,data$day)
 data$Treat.Size.Day <- interaction(data$Treatment,data$Size,data$day)
 
 #Place vars of interest into vectors for each component of ordination
-SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other") #comm matrix
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet") #comm matrix
 ENV <- c("day.cont","centrality","Size","dist.outlet","Treatment","Treat.Size","Treat.Size.Day") #Constrains
 CONT <- c("Replicate") #Effect to partial out
 
@@ -126,27 +126,22 @@ Let's explore this model visually
 
 ```{r ordination figs, echo=FALSE, dpi=400, warning=FALSE}
 ##define color vector
+
 #display.brewer.all(nlevels(X$Treat.Size))
 colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
-#pchvec <- c(16,17,21)
 
 ##Plot
 ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
-#text(rda.mod, display="cn", col="blue",cex=0.5)
 points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
-text(rda.mod, display="sp", col="blue",cex=1)
+points(rda.mod, display="cn", col="blue",cex=0.0000001)
+text(rda.mod, display="sp", col="blue",cex=0.5)
 legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
 
-
-##Plot predictors
-ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
-text(rda.mod, display="cn", col="blue",cex=0.5)
-text(rda.mod, display="sp", col="blue",cex=1)
 ```
 
-First looking at the predictors (arrows) on the second figure one can see that higher patch volume and high centrality values co-varies, which make sense since larger patches are generally more connected. In direct opposition (180 degrees on the figure) higher distance to outlet values are found which also make sense since smaller patches are mainly found upstream and thus further from the outlet. Orthogonal to this gradient (90 degree) is the effect of time. All the messy stuff in the middle represent the centroids of the unordered factors (interaction terms). The species scores are well distributed on the plot as a function of the different constraints. Keeping those constraints in mind, let's switch to the first figure. That figure shows the 'site' scores (microcosms) with the two colors identifying each microcosm as being part of a connected or an isolated blue ecosystem. From the model we know that the effect of the treatment is significant and relatively important. Here we can see that there is indeed some level of difference between sites in connected and isolated ecosystems.  
+First looking at the predictors (arrows) one can see that higher patch volume and high centrality values co-varies, which make sense since larger patches are generally more connected. In direct opposition (180 degrees on the figure) higher distance to outlet values are found which also make sense since smaller patches are mainly found upstream and thus further from the outlet. Orthogonal to this gradient (90 degree) is the effect of time. The species scores are well distributed on the plot as a function of the different constraints. Each point on the figure is a microcosm with the two colors identifying them as being part of a connected or an isolated blue ecosystem. From the model we know that the effect of the treatment is significant and relatively important. Here we can see that there is indeed some level of difference between sites in connected and isolated ecosystems.  
 
-Now in terms of interpretation, which requires to superpose both figures together, we can see that PCA and COL are more strongly associated with sites in connected ecosystem while Spi, Tet and Chi are associated with sites in isolated ecosystems. There are some interactions with other preditors though. For instance the figure suggest that PCA also became more abundant later in the experiment, while SPI was more abundant earlier suggesting some temporal community dynamics. Most interestingly, as mentionned, TET and CHI are associated with sites in isolated ecosystem, BUT also sites that tend to be more upstream in these ecosystems (smaller patch size more distant from the outlet). On the opposite ROT seems to be more associated to downstream sites (high centrality, high patch volume) independant of treatment or temporal aspect.
+Now in terms of interpretation, we can see that PCA and COL are more strongly associated with sites in connected ecosystem while Spi, Tet and Chi are associated with sites in isolated ecosystems. There are some interactions with other preditors though. For instance the figure suggest that PCA also became more abundant later in the experiment, while SPI was more abundant earlier suggesting some temporal community dynamics. Most interestingly, as mentionned, TET and CHI are associated with sites in isolated ecosystem, BUT also sites that tend to be more upstream in these ecosystems (smaller patch size more distant from the outlet). On the opposite ROT seems to be more associated to downstream sites (high centrality, high patch volume) independant of treatment or temporal aspect.
 
 ## Log-ratio 
 
@@ -209,7 +204,7 @@ dat.lrr <- output %>%
 
 
 
-plot(NA,xlim=c(1,8),ylim=c(-2,2),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+plot(NA,xlim=c(1,8),ylim=c(-2,2),xlab="Species",ylab="ln(connected/isolated)",xaxt="n")
   axis(1,at=1:8,labels=dat.lrr$species)
   abline(h=0,lty=3)
   arrows(1:8,dat.lrr$mean.lrr + dat.lrr$CI,1:8, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
@@ -236,7 +231,7 @@ layout(matrix(1:4,ncol=2,nrow=2))
 
 #par(mfrow=c(2,2))
 for(i in 1:length(S)){ 
- plot(NA,xlim=c(1,8),ylim=c(-4,3.5),main=paste(S[i],"mL"),xlab="Species",ylab="ln(patch connected / patch isolated)",xaxt="n")
+ plot(NA,xlim=c(1,8),ylim=c(-4,3.5),main=paste(S[i],"mL"),xlab="Species",ylab="ln(connected/isolated)",xaxt="n")
   axis(1,at=1:8,labels=SP)
   abline(h=0,lty=3)
   arrows(1:8,dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] + dat.lrr2$CI[dat.lrr2$size==S[i]],1:8, dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] - dat.lrr2$CI[dat.lrr2$size==S[i]],angle=90,code=3,length=0.05)
@@ -301,7 +296,7 @@ dat.lrr <- output %>%
 
 
 
-plot(NA,xlim=c(1,4),ylim=c(-1,1),xlab="Exp. time",ylab="ln(patch connected / patch isolated)",xaxt="n")
+plot(NA,xlim=c(1,4),ylim=c(-1,1),xlab="Exp. time",ylab="ln(connected/isolated)",xaxt="n")
   axis(1,at=1:4,labels=dat.lrr$time)
   abline(h=0,lty=3)
   arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
@@ -322,7 +317,7 @@ dat.lrr <- output %>%
 
 
 
-plot(NA,xlim=c(1,4),ylim=c(-1.5,1.5),xlab="Patch size",ylab="ln(patch connected / patch isolated)",xaxt="n")
+plot(NA,xlim=c(1,4),ylim=c(-1.5,1.5),xlab="Patch size",ylab="ln(connected/isolated)",xaxt="n")
   axis(1,at=1:4,labels=dat.lrr$size)
   abline(h=0,lty=3)
   arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
@@ -345,77 +340,124 @@ Main conclusions:
 Visual exploration from the `Overview.Rmd` already strongly suggests no effects on aggregate metrics. We will here use mixed effects modeling to directly test effects on bacteria and protist densities, and protist species richness. We will then see if those results can inform or not our main results presented above.  
 
 * Effect of resource pulse from Green ecosystem on Bacteria density in Blue ecosystem
-```{r nlme_blue_bact, echo=TRUE}
+```{r nlme_data, echo=FALSE, eval=TRUE}
 # Filter data (bacteria were only measured for replicates A and B)
-X <- data %>% 
+
+X.bact <- data %>% 
   filter(day!=0 & Replicate %in% c("A","B")) %>% 
   mutate(Treatment = as.factor(Treatment),
-         day = factor(day,levels=c("0","7","15","21","29")),
-         day.cont = log(as.numeric(as.character(day))),
-         Size = as.ordered(Size),
-         centrality = as.numeric(as.character(centrality)),
-         dist.outlet = as.numeric(as.character(dist.outlet)))
-# Run model
-Mod1 <- nlme:::lme(log(bact.blue) ~ Size*Treatment + bact.green + day.cont, 
-                   random = ~ day|Replicate, data=X,
-                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
-```
-
-Let's visualize print out the t Table
-```{r nlme_blue_bact_results, echo=FALSE}
-summary(Mod1)$tTable
-```
-_please note that because Size is ordered, the intercept here represents the MEAN factor level and not the baseline level (Size=7.5)_
-
-We can see that three effects come as statistically significant: 
-- Size (the linear term, but not the quadratic and cubic): linear decline with increasing patch size
-- Treatment: small increase of bacteria in isolated versus connected ecosystems
-- Day: average increases of bacteria density over experimental time
-
-The results with patch size indicates that it can be reduced to its linear component and can be visualized as such:
-
-```{r nlme_blue_bact_linear, include=FALSE}
-# Filter data (bacteria were only measured for replicates A and B)
-X1 <- data %>% 
-  filter(day!=0 & Replicate %in% c("A","B")) %>% 
-  mutate(Treatment = as.factor(Treatment),
-         day = factor(day,levels=c("0","7","15","21","29")),
+         day = factor(day,levels=c("7","15","21","29")),
          day.cont = log(as.numeric(as.character(day))),
          Size = as.numeric(as.character(Size)),
          centrality = as.numeric(as.character(centrality)),
          dist.outlet = as.numeric(as.character(dist.outlet)))
 
+X1 <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B","C","D")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.numeric(as.character(Size)),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+```
+
+Let's print out the t Table
+```{r nlme_blue_bact_results, echo=TRUE, eval=TRUE}
+# Run model
+Mod1 <- nlme:::lme(log(bact.blue) ~ Treatment*Size*day.cont + bact.green, 
+                   random = ~ 1|Replicate, data=X.bact,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+summary(Mod1)$tTable
+```
+_please note that because Size is ordered, the intercept here represents the MEAN factor level and not the baseline level (Size=7.5) (L: linear, Q: Quadratic, C: Cubic)_
+
+We can see that three effects come as statistically significant: 
+- Size (only on day 29): decline of bacteria density with increasing patch size
+- Day: average increases of bacteria density over experimental time
+
+```{r nlme_blue_bact_figure, echo=FALSE, eval=TRUE}
+
 # Generate data frame with each predictor to extract predictions
-newdat <-  with(X1,
+newdat <-  with(X.bact,
                  expand.grid(Treatment=unique(Treatment),
                              Size = c(min(Size),max(Size)),
                              bact.green=c(min(bact.green),max(bact.green)),
-                             day.cont = c(min(day.cont),max(day.cont)))
-                  )
+                             day.cont = c(min(day.cont),max(day.cont))))
 
-# Run model
-Mod1.1 <- nlme:::lme(log(bact.blue) ~ Size*Treatment + bact.green + day.cont, 
-                   random = ~ day|Replicate, data=X1,
-                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
-```
+X.1 <- X.bact %>% 
+  filter(day==29)
 
-```{r nlme_blue_bact_figure, echo=TRUE}
+ggplot(mapping=aes(x=as.factor(Size),y=log(bact.blue)),data=X.1) +
+  geom_boxplot(col="blue",alpha=0.5) -> p1
 
-ggplot(mapping=aes(x=Size,y=log(bact.blue)),data=X1) +
+ggplot(mapping=aes(x=day.cont,y=log(bact.blue)),data=X.bact) +
   geom_point(col="blue",alpha=0.5) +
-  geom_line(data=newdat,aes(y=predict(Mod1.1,newdata=newdat,level=0)),col="red") -> p1
+  geom_line(data=newdat,aes(y=predict(Mod1,newdata=newdat,level=0)),col="red") -> p2
 
-ggplot(mapping=aes(x=Treatment,y=log(bact.blue)),data=X1) +
-  geom_boxplot(col="blue",alpha=0.5) -> p2
-
-ggplot(mapping=aes(x=day.cont,y=log(bact.blue)),data=X1) +
-  geom_point(col="blue",alpha=0.5) +
-  geom_line(data=newdat,aes(y=predict(Mod1.1,newdata=newdat,level=0)),col="red") -> p3
-
-grid.arrange(p1,p2,p3,ncol=3)
+grid.arrange(p1,p2,ncol=2)
 
 ```
 
 * Effect of resource pulse from Green ecosystem on protist density in Blue ecosystem
+```{r nlme_prot_dens, echo=TRUE, eval=TRUE}
+# Run model
+Mod2 <- nlme:::lme(prot.ab ~ Treatment*Size*day.cont, 
+                   random = ~ 1|Replicate, data=X1,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+summary(Mod2)$tTable
+```
+
+We can see that three effects come as statistically significant: 
+- Size: Decline of protist abundance with increasing patch size
+  - The effect change with time
+- Day: Strong decline of protist density over experimental time
+
+```{r nlme_prot_dens_figure, echo=FALSE, eval=TRUE}
+
+# Plot results
+
+ggplot(mapping=aes(x=as.factor(Size),y=prot.ab),data=X1) +
+  geom_boxplot() + facet_wrap(~ day)   
 
 
+
+ggplot(mapping=aes(x=day,y=prot.ab),data=X1) +
+   geom_boxplot(col="blue",alpha=0.5) 
+
+
+```
+
+* Effect of resource pulse from Green ecosystem on protist richness in Blue ecosystem
+
+```{r nlme_prot_rich, echo=TRUE, eval=TRUE}
+# Run model
+Mod3 <- nlme:::lme(prot.rich ~ Treatment*Size*day.cont, 
+                   random = ~ 1|Replicate, data=X1,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+summary(Mod3)$tTable
+```
+
+We can see that two effects come as statistically significant: 
+- Size: Decline of protist richness over patch size but only significant at day 29
+- Day: average decline in protist richness over experimental time
+
+```{r nlme_prot_rich_figure, echo=FALSE, eval=TRUE}
+
+# Plot results
+
+X1.1 <- X1 %>%
+  filter(day==29)
+ggplot(mapping=aes(x=as.factor(Size),y=prot.rich),data=X1.1) +
+  geom_boxplot(col="blue",alpha=0.5) -> p1
+
+ggplot(mapping=aes(x=day.cont,y=prot.rich),data=X1) +
+  geom_point(col="blue",alpha=0.5)  -> p2
+
+grid.arrange(p1,p2,ncol=2)
+
+```
+
+## Conclusion on aggregate metrics
+
+We did not detect any effects of our main treatments in the Blue ecosystem on bacteria and protist densities or on protist richness. We did detect effects of patch size and changes over time. Those effects of patch size on aggegate metrics were thus independant of being connected or not and represent constraints of the dendritic spatial networks on richnes and density. Those patterns found here, especially on species richness, have already been analysed comprehensibly and published elsewhere (please see Harvey et al., Proc.B., in press)  
