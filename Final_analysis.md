@@ -111,9 +111,9 @@ anova(rda.mod,by="terms",permu=200)
 ## day.cont          1 0.036435 246.1496  0.001 ***
 ## centrality        1 0.009496  64.1510  0.001 ***
 ## Size              3 0.002291   5.1587  0.001 ***
-## dist.outlet       1 0.000480   3.2415  0.014 *  
+## dist.outlet       1 0.000480   3.2415  0.016 *  
 ## Treatment         1 0.007661  51.7566  0.001 ***
-## Treat.Size        3 0.000993   2.2362  0.011 *  
+## Treat.Size        3 0.000993   2.2362  0.010 ** 
 ## Treat.Size.Day   23 0.020352   5.9779  0.001 ***
 ## Residual       1118 0.165488                    
 ## ---
@@ -140,7 +140,7 @@ Now in terms of interpretation, we can see that PCA and COL are more strongly as
 
 Another useful way of representing those results is by using the log response ratio here defined has: 
 
-**LRR = log(Abundance~connected~/Abundance~isolated~)**
+**LRR = log( mean(connected) / mean(isolated) )**
 
 with confidence interval: 
 
@@ -155,6 +155,8 @@ In complementarity with the RDA model, let's look at the log response ratio of t
 This figure conveys very similar information to the RDA figure: PCA and COL tend to be more abundant in microcosms from connected ecosystems while CHI, TET and BLE tend to be more abundant in microcosms from isolated ecosystems. GREAT! 
 
 Now let's see if we can still detect the interaction with position in the network using patch size (which according to the RDA is the same as using distance to outlet or centrality): 
+
+
 
 
 ![](Final_analysis_files/figure-html/LRR figure 2-1.png)<!-- -->
@@ -173,16 +175,47 @@ Here the main question of interest is whether we can see imprint of what was goi
 
 ## Log-ratio
 
+![](Final_analysis_files/figure-html/LRR figure 3 green-1.png)<!-- -->
 
+So there is a tendancy for bacteria density in the green ecosystem to be higher when connected to the blue ecosystem versus isolated controls. Let's see if we can detect any interactions, even weak, with the position in the blue ecosystem:
 
-![](Final_analysis_files/figure-html/LRR Green figure 1-1.png)<!-- -->
+![](Final_analysis_files/figure-html/LRR figure 4 green-1.png)<!-- -->
 
+Interestingly, the positive effect of being connected to the blue ecosystem is even across the green ecosystem no matter where they are connected in the dendritic network. It suggests that disperal along the lattice network act as a strong homogenizing force. There is an unsignificant trend here, nonetheless interesting, where the Effect size seems to follow a hump shape relationship with patch size. It is interesting because it somehow follow connectance in the blue ecosystem (middle patch size are most connected compared to smallest and largest): 
+![](Final_analysis_files/figure-html/figure connectance dendritic network-1.png)<!-- -->
 
-So there is a tendancy for bacteria density in the green ecosystem to be higher when connected to the blue ecosystem versus isolated controls. The strongest effect is observed on day 21. Let's see if we can detect any interactions, even weak, with the position in the blue ecosystem:
+Let's explore those effects with a proper statistical model:
 
-![](Final_analysis_files/figure-html/LRR Green figure 2-1.png)<!-- -->
+```r
+#Extract data 
 
-Interestingly, the positive effect of being connected to the blue ecosystem is especially strong for the green patches that were connected with a small volume upstream site in the blue ecosystem. Here this figure is only showing day 21 which is the day where the effect of the treatment was strongest according to the previous figure, but the effect is also significant (LRR > 0) although smaller when averaging across all time periods. 
+X.bact <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.numeric(as.character(Size)),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+
+#Run model (no log transformation based on histogramm of residuals)
+  #Also: here Time was not significant so it was removed from the fixed variables
+Mod4 <- nlme:::lme(bact.green ~ Treatment*Size + degree, 
+                   random = ~ as.factor(day)|Replicate, data=X.bact,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+summary(Mod4)$tTable
+```
+
+```
+##                              Value Std.Error  DF    t-value      p-value
+## (Intercept)            37415261.30 1898122.8 570 19.7117179 2.413667e-66
+## TreatmentIsolated      -7595248.99 2393343.0 570 -3.1734895 1.587352e-03
+## Size                     132817.99  123034.6 570  1.0795170 2.808139e-01
+## degree                   112885.14  770252.2 570  0.1465561 8.835342e-01
+## TreatmentIsolated:Size   -21505.92  145764.9 570 -0.1475385 8.827592e-01
+```
+
+From the model, we obtain the same information as with our LRR. There is a significant reduction of bacteria density in isolated green ecosystem compared to the ones connected to a blue ecosystem. Changes associated with size or degree are not significants. 
 
 # Conclusion
 
@@ -202,8 +235,8 @@ Visual exploration from the `Overview.Rmd` already strongly suggests no effects 
 Let's print out the t Table
 
 ```r
-# Run model
-Mod1 <- nlme:::lme(log(bact.blue) ~ Treatment*Size*day.cont + bact.green, 
+#Run model (no log transformation based on histogramm of residuals)
+Mod1 <- nlme:::lme(bact.blue ~ Treatment*Size*day.cont + bact.green, 
                    random = ~ 1|Replicate, data=X.bact,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod1)$tTable
@@ -211,27 +244,26 @@ summary(Mod1)$tTable
 
 ```
 ##                                         Value    Std.Error  DF    t-value
-## (Intercept)                      1.639611e+01 2.996754e-01 566 54.7129148
-## TreatmentIsolated                2.042969e-02 4.158309e-01 566  0.0491298
-## Size                             2.215569e-02 1.796103e-02 566  1.2335426
-## day.cont                         4.950361e-01 1.043469e-01 566  4.7441390
-## bact.green                      -1.850781e-09 1.304054e-09 566 -1.4192522
-## TreatmentIsolated:Size          -9.301013e-03 2.534468e-02 566 -0.3669809
-## TreatmentIsolated:day.cont       6.331961e-02 1.478129e-01 566  0.4283766
-## Size:day.cont                   -1.212724e-02 6.372805e-03 566 -1.9029667
-## TreatmentIsolated:Size:day.cont  3.153082e-03 8.998941e-03 566  0.3503837
-##                                       p-value
-## (Intercept)                     3.686880e-228
-## TreatmentIsolated                9.608332e-01
-## Size                             2.178854e-01
-## day.cont                         2.654378e-06
-## bact.green                       1.563760e-01
-## TreatmentIsolated:Size           7.137704e-01
-## TreatmentIsolated:day.cont       6.685399e-01
-## Size:day.cont                    5.755201e-02
-## TreatmentIsolated:Size:day.cont  7.261811e-01
+## (Intercept)                     -2.940573e+07 1.660742e+07 566 -1.7706384
+## TreatmentIsolated               -6.155208e+06 2.320397e+07 566 -0.2652652
+## Size                             1.523642e+06 1.002229e+06 566  1.5202534
+## day.cont                         3.204599e+07 5.822723e+06 566  5.5036082
+## bact.green                      -7.001092e-02 7.260391e-02 566 -0.9642859
+## TreatmentIsolated:Size           2.930538e+05 1.414266e+06 566  0.2072127
+## TreatmentIsolated:day.cont       7.349975e+06 8.248138e+06 566  0.8911071
+## Size:day.cont                   -7.724117e+05 3.556083e+05 566 -2.1720855
+## TreatmentIsolated:Size:day.cont -1.622561e+05 5.021525e+05 566 -0.3231211
+##                                      p-value
+## (Intercept)                     7.715905e-02
+## TreatmentIsolated               7.909017e-01
+## Size                            1.290057e-01
+## day.cont                        5.646519e-08
+## bact.green                      3.353144e-01
+## TreatmentIsolated:Size          8.359183e-01
+## TreatmentIsolated:day.cont      3.732503e-01
+## Size:day.cont                   3.026362e-02
+## TreatmentIsolated:Size:day.cont 7.467229e-01
 ```
-_please note that because Size is ordered, the intercept here represents the MEAN factor level and not the baseline level (Size=7.5) (L: linear, Q: Quadratic, C: Cubic)_
 
 We can see that three effects come as statistically significant: 
 - Size (only on day 29): decline of bacteria density with increasing patch size
@@ -242,9 +274,9 @@ We can see that three effects come as statistically significant:
 * Effect of resource pulse from Green ecosystem on protist density in Blue ecosystem
 
 ```r
-# Run model
+#Run model (no log transformation based on histogramm of residuals)
 Mod2 <- nlme:::lme(prot.ab ~ Treatment*Size*day.cont, 
-                   random = ~ 1|Replicate, data=X1,
+                   random = ~ 1|Replicate, data=X.prot,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod2)$tTable
 ```
@@ -281,9 +313,9 @@ We can see that three effects come as statistically significant:
 
 
 ```r
-# Run model
+#Run model (no log transformation based on histogramm of residuals)
 Mod3 <- nlme:::lme(prot.rich ~ Treatment*Size*day.cont, 
-                   random = ~ 1|Replicate, data=X1,
+                   random = ~ 1|Replicate, data=X.prot,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod3)$tTable
 ```

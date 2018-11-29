@@ -36,6 +36,7 @@ to.R <- "./output/"
 #Load data in R environment
 ##################
 data = readRDS(paste0(to.output,"cl.data.RDS"))
+SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet") #comm matrix
 ```
 
 # Analytical pipeline
@@ -147,7 +148,7 @@ Now in terms of interpretation, we can see that PCA and COL are more strongly as
 
 Another useful way of representing those results is by using the log response ratio here defined has: 
 
-**LRR = log(Abundance~connected~/Abundance~isolated~)**
+**LRR = log( mean(connected) / mean(isolated) )**
 
 with confidence interval: 
 
@@ -155,90 +156,137 @@ with confidence interval:
 
 In complementarity with the RDA model, let's look at the log response ratio of the different protist species to the main treatment. 
 
-```{r LRR calculation, include=FALSE}
+```{r effect size resource pulse on protist, include=FALSE}
 
-####Generate data for LRR calculation
-D <- data %>% 
-  filter(day !=0)
+#Create output file
+LRR_Res_protist <- data.frame(species=character(0),LRR=numeric(0),CI_upper=numeric(0),CI_lower=numeric(0))
 
-####Create vectors with variables of interest 
-t <- c("7","15","21","29") 
-SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet","Other")
-S <- c("7.5","13.0","22.5","45.0")
+#Loop for each species
 
-####Replace zeros by the same very small value (to avoid INF and -INF in log ratio)
-min = 0.001
-D[,SP] <- lapply(D[,SP],function(x) ifelse(x==0,min,x))
-
-####Calculate LRR 
-
-output <- data.frame(time=character(0),size=character(0),LRR=numeric(0),SP=character(0))#[1:(144*length(SP)),]
-
-for(i in 1:length(t)){
-  for(j in 1:length(SP)) { 
+for(i in 1:length(SP)) { 
   
-    LRR <- log( D[which(D$Treatment=="Connected" & D$day==t[i]),SP[j]] / D[which(D$Treatment=="Isolated" & D$day==t[i]),SP[j]] )
+# Extract info for SP[i] and summarise data
+  D_Res_protist <- data %>% 
+    filter(day !=0) %>% 
+    select(SP[i],day, Treatment, Replicate, Size, centrality, degree, dist.outlet) %>% 
+    mutate(Treatment = as.factor(Treatment),
+           Replicate = as.factor(Replicate),
+           Size = as.factor(Size))  %>% 
+    Rmisc::summarySE(.,measurevar = SP[i], groupvars = c("Treatment")) #get the mean by treatment level for each species
   
-  species <- rep(SP[j],144)
+  LRR <- log(D_Res_protist[1,3]) - log(D_Res_protist[2,3]) 
+  SE_LRR <- sqrt( (D_Res_protist$se[1]^2/D_Res_protist[1,3]^2) + (D_Res_protist$se[2]^2/D_Res_protist[2,3]^2) ) #From Hedge et al., 1999
+  CI_upper <- LRR + 1.96*SE_LRR
+  CI_lower <- LRR - 1.96*SE_LRR
+  #CI_both <- LRR + c(-1, 1) * qnorm(1 - (1 - 0.95)/2) * SE_LRR #from ARPobservation:::logRespRatio
+  species <- SP[i]
   
-  time <- rep(t[i],144)
+  bind.out_Res_protist <- data.frame(species,LRR,CI_upper,CI_lower)
+  #colnames(bind.out) <- c("time","size","LRR","species","CI_upper","CI_lower")
   
-  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
+  LRR_Res_protist <- rbind.data.frame(LRR_Res_protist,bind.out_Res_protist)
   
-  lala <- cbind(time,size,LRR,species)
-  colnames(lala) <- c("time","size","LRR","species")
-  
-  output <- rbind.data.frame(output,lala)
-  
-
   }
-}
+
+#Data calculated later in the document (added here for plotting purpose only - see below)
+LRR_bact_green <- data.frame(species="Bact (green)",LRR=0.2313328,CI_upper=0.3173062,CI_lower=0.1453594)
+
+LRR_Res_protist <- rbind(LRR_Res_protist,LRR_bact_green)
+
 ```
 
 ```{r LRR figure 1, echo=FALSE, dpi=400}
-dat.lrr <- output %>% 
-  filter(time!=0) %>% 
-  group_by(species) %>% 
-  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
-            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
 
+fig_dat_Res_protist <- LRR_Res_protist %>%
+  filter(species != "Other")
 
+ggplot(fig_dat_Res_protist,mapping=aes(x=species,y=LRR)) + coord_cartesian(ylim = c(-0.8,0.5)) +
+  xlab("Species") + ylab("Effect size (log ratio of means)") + 
+  geom_rect(fill="darkgreen",alpha=0.05, xmin=7.9, xmax=8.1, ymin=-Inf, ymax=Inf) +
+  geom_errorbar(aes(ymin= CI_lower, ymax= CI_upper),linetype=1,width=0) +
+  geom_point() +
+  geom_hline(yintercept=0,lty=2) +
+  annotate("text", x=1, y=0.5,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
+  annotate("text", x=1, y=-0.8,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic() 
 
-plot(NA,xlim=c(1,8),ylim=c(-2,2),xlab="Species",ylab="ln(connected/isolated)",xaxt="n")
-  axis(1,at=1:8,labels=dat.lrr$species)
-  abline(h=0,lty=3)
-  arrows(1:8,dat.lrr$mean.lrr + dat.lrr$CI,1:8, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
-  points(dat.lrr$species,dat.lrr$mean.lrr,pch=16)
-  
 ```
 
 This figure conveys very similar information to the RDA figure: PCA and COL tend to be more abundant in microcosms from connected ecosystems while CHI, TET and BLE tend to be more abundant in microcosms from isolated ecosystems. GREAT! 
 
 Now let's see if we can still detect the interaction with position in the network using patch size (which according to the RDA is the same as using distance to outlet or centrality): 
 
+```{r effect size resource pulse x volume, include=FALSE}
+
+#Create output file
+LRR_Res_Vol_protist <- data.frame(size=numeric(0),species=character(0),LRR=numeric(0),CI_upper=numeric(0),CI_lower=numeric(0))
+
+#Loop for each species
+
+for(i in 1:length(SP)) { 
+  
+# Extract info for SP[i] and summarise data
+  D_Res_Vol_protist <- data %>% 
+    filter(day !=0) %>% 
+    select(SP[i],day, Treatment, Replicate, Size, centrality, degree, dist.outlet) %>% 
+    mutate(Treatment = as.factor(Treatment),
+           Replicate = as.factor(Replicate),
+           Size = as.factor(Size))  %>% 
+    Rmisc::summarySE(.,measurevar = SP[i], groupvars = c("Treatment","Size"))
+  
+  LRR.7 <- log(D_Res_Vol_protist[1,4]) - log(D_Res_Vol_protist[5,4]) 
+  LRR.13 <- log(D_Res_Vol_protist[2,4]) - log(D_Res_Vol_protist[6,4]) 
+  LRR.22 <- log(D_Res_Vol_protist[3,4]) - log(D_Res_Vol_protist[7,4]) 
+  LRR.45 <- log(D_Res_Vol_protist[4,4]) - log(D_Res_Vol_protist[8,4]) 
+  LRR <- rbind(LRR.7,LRR.13,LRR.22,LRR.45)
+  
+  SE_LRR.7 <- sqrt( (D_Res_Vol_protist$se[1]^2/D_Res_Vol_protist[1,4]^2) + (D_Res_Vol_protist$se[5]^2/D_Res_Vol_protist[5,4]^2) )
+  SE_LRR.13 <- sqrt( (D_Res_Vol_protist$se[2]^2/D_Res_Vol_protist[2,4]^2) + (D_Res_Vol_protist$se[6]^2/D_Res_Vol_protist[6,4]^2) )
+  SE_LRR.22 <- sqrt( (D_Res_Vol_protist$se[3]^2/D_Res_Vol_protist[3,4]^2) + (D_Res_Vol_protist$se[7]^2/D_Res_Vol_protist[7,4]^2) )
+  SE_LRR.45 <- sqrt( (D_Res_Vol_protist$se[4]^2/D_Res_Vol_protist[4,4]^2) + (D_Res_Vol_protist$se[8]^2/D_Res_Vol_protist[8,4]^2) )
+  SE_LRR <- rbind(SE_LRR.7,SE_LRR.13,SE_LRR.22,SE_LRR.45)
+  
+  CI_upper.7 <- LRR.7 + 1.96*SE_LRR.7
+  CI_upper.13 <- LRR.13 + 1.96*SE_LRR.13
+  CI_upper.22 <- LRR.22 + 1.96*SE_LRR.22
+  CI_upper.45 <- LRR.45 + 1.96*SE_LRR.45
+  CI_upper <- rbind(CI_upper.7,CI_upper.13,CI_upper.22,CI_upper.45)
+  
+  CI_lower.7 <- LRR.7 - 1.96*SE_LRR.7
+  CI_lower.13 <- LRR.13 - 1.96*SE_LRR.13
+  CI_lower.22 <- LRR.22 - 1.96*SE_LRR.22
+  CI_lower.45 <- LRR.45 - 1.96*SE_LRR.45
+  CI_lower <- rbind(CI_lower.7,CI_lower.13,CI_lower.22,CI_lower.45)
+  
+  species <- rep(SP[i],4)
+  size <- unique(D_Res_Vol_protist$Size)
+  
+  bind.out_Res_Vol_protist <- data.frame(size,species,LRR,CI_upper,CI_lower)
+  #colnames(bind.out) <- c("time","size","LRR","species","CI_upper","CI_lower")
+  
+  LRR_Res_Vol_protist <- rbind.data.frame(LRR_Res_Vol_protist,bind.out_Res_Vol_protist)
+  
+  }
+
+```
+
 
 ```{r LRR figure 2, echo=FALSE, dpi=400}
-dat.lrr2 <- output %>% 
-  filter(time!=0) %>% 
-  group_by(size,species) %>% 
-  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
-            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+pd <- position_dodge(0.6)
 
+output_Res_Vol_protist <- LRR_Res_Vol_protist  %>%
+  filter(species != "Other") 
 
-S <- c(7.5,13,22.5,45)
-
-layout(matrix(1:4,ncol=2,nrow=2))
-
-#par(mfrow=c(2,2))
-for(i in 1:length(S)){ 
- plot(NA,xlim=c(1,8),ylim=c(-4,3.5),main=paste(S[i],"mL"),xlab="Species",ylab="ln(connected/isolated)",xaxt="n")
-  axis(1,at=1:8,labels=SP)
-  abline(h=0,lty=3)
-  arrows(1:8,dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] + dat.lrr2$CI[dat.lrr2$size==S[i]],1:8, dat.lrr2$mean.lrr[dat.lrr2$size==S[i]] - dat.lrr2$CI[dat.lrr2$size==S[i]],angle=90,code=3,length=0.05)
-  points(dat.lrr2$species[dat.lrr2$size==S[i]],dat.lrr2$mean.lrr[dat.lrr2$size==S[i]],pch=16)
-   }
-
-
+ggplot(output_Res_Vol_protist,mapping=aes(x=size,y=LRR)) + coord_cartesian(ylim = c(-1.5,0.7)) +
+  xlab("Patch volume (mL)") + ylab("Effect size (log ratio of means)") + 
+  geom_rect(fill="gray",alpha=0.05, xmin=0.7, xmax=1.3, ymin=-Inf, ymax=Inf) +
+  geom_rect(fill="gray",alpha=0.05, xmin=1.7, xmax=2.3, ymin=-Inf, ymax=Inf) +
+  geom_rect(fill="gray",alpha=0.05, xmin=2.7, xmax=3.3, ymin=-Inf, ymax=Inf) +
+  geom_rect(fill="gray",alpha=0.05, xmin=3.7, xmax=4.3, ymin=-Inf, ymax=Inf) +
+  geom_errorbar(aes(ymin=CI_lower, ymax=CI_upper,colour=species), position=pd, width=0) +
+  geom_point(aes(colour=species),position=pd) +
+  geom_hline(yintercept=0,lty=2) +
+  annotate("text", x=0.7, y=0.7,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
+  annotate("text", x=0.7, y=-1.5,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic() 
   
 ```
 
@@ -256,76 +304,111 @@ Here the main question of interest is whether we can see imprint of what was goi
 
 ## Log-ratio
 
-```{r green LRR calculation, include=FALSE}
+```{r LRR figure 3 green, echo=FALSE, dpi=400}
 ####Generate data for LRR calculation
-D <- data %>% 
-  filter(day !=0 & Replicate %in% c("A","B"))
+D_Res_green <- data %>% 
+  filter(day !=0 & Replicate %in% c("A","B")) %>% 
+  Rmisc::summarySE(.,measurevar = "bact.green", groupvars = c("Treatment"))
 
-####Create vectors with variables of interest 
-t <- c("7","15","21","29") 
-S <- c("7.5","13.0","22.5","45.0")
-
-####Calculate LRR 
-
-output <- data.frame(time=character(0),size=character(0),LRR=numeric(0))#[1:(144*length(SP)),]
-
-for(i in 1:length(t)){
+#Calculate LRR
+  species <- "bacteria"
+  LRR <- log(D_Res_green[1,3]) - log(D_Res_green[2,3]) 
+  SE_LRR <- sqrt( (D_Res_green$se[1]^2/D_Res_green[1,3]^2) + (D_Res_green$se[2]^2/D_Res_green[2,3]^2) ) #From Hedge et al., 1999
+  CI_upper <- LRR + 1.96*SE_LRR
+  CI_lower <- LRR - 1.96*SE_LRR
   
-    LRR <- log( D$bact.green[which(D$Treatment=="Connected" & D$day==t[i])] / D$bact.green[which(D$Treatment=="Isolated" & D$day==t[i])] )
+  bind.out_Res_green <- data.frame(species,LRR,CI_upper,CI_lower)
   
-  time <- rep(t[i],72)
-  
-  size <- D$Size[which(D$Treatment=="Connected" & D$day==t[i])]
-  
-  lala <- cbind(time,size,LRR)
-  colnames(lala) <- c("time","size","LRR")
-  
-  output <- rbind.data.frame(output,lala)
-  
-}
-
-
-```
-
-```{r LRR Green figure 1, echo=FALSE, dpi=400}
-dat.lrr <- output %>% 
-  mutate(LRR = as.numeric(as.character(LRR))) %>% 
-  group_by(time) %>% 
-  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
-            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
-
-
-
-plot(NA,xlim=c(1,4),ylim=c(-1,1),xlab="Exp. time",ylab="ln(connected/isolated)",xaxt="n")
-  axis(1,at=1:4,labels=dat.lrr$time)
-  abline(h=0,lty=3)
-  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
-  points(dat.lrr$time,dat.lrr$mean.lrr,pch=16)
+# Plot 
+ggplot(bind.out_Res_green,mapping=aes(x=species,y=LRR)) + coord_cartesian(ylim = c(-0.1,0.5)) +
+  ylab("Effect size (log ratio of means)") + xlab("Bacteria in green ecosystem") +
+  geom_errorbar(aes(ymin=CI_lower, ymax=CI_upper), width=0) +
+  geom_point() +
+  geom_hline(yintercept=0,lty=2) +
+  annotate("text", x=0.7, y=0.7,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
+  annotate("text", x=0.7, y=-1.5,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic()
   
 ```
 
+So there is a tendancy for bacteria density in the green ecosystem to be higher when connected to the blue ecosystem versus isolated controls. Let's see if we can detect any interactions, even weak, with the position in the blue ecosystem:
 
-So there is a tendancy for bacteria density in the green ecosystem to be higher when connected to the blue ecosystem versus isolated controls. The strongest effect is observed on day 21. Let's see if we can detect any interactions, even weak, with the position in the blue ecosystem:
-
-```{r LRR Green figure 2, echo=FALSE, dpi=400}
-dat.lrr <- output %>% 
-  filter(time==21) %>% #The previous graph showed that the effect if stronger at day 21
-  mutate(LRR = as.numeric(as.character(LRR))) %>% 
-  group_by(size) %>% 
-  summarise(mean.lrr = mean(LRR, na.rm=TRUE),
-            CI = qnorm(0.975) * ( sd(LRR) / sqrt(length(LRR)) ) )  
+```{r LRR figure 4 green, echo=FALSE, dpi=400}
+D_Res_Vol_green <- data %>% 
+  filter(day !=0 & Replicate %in% c("A","B")) %>% 
+  Rmisc::summarySE(.,measurevar = "bact.green", groupvars = c("Treatment","Size"))
 
 
+#Calculate LRR
+species <- "bacteria"
+LRR.7 <- log(D_Res_Vol_green[1,4]) - log(D_Res_Vol_green[5,4]) 
+LRR.13 <- log(D_Res_Vol_green[2,4]) - log(D_Res_Vol_green[6,4])
+LRR.22 <- log(D_Res_Vol_green[3,4]) - log(D_Res_Vol_green[7,4])
+LRR.45 <- log(D_Res_Vol_green[4,4]) - log(D_Res_Vol_green[8,4])
+LRR <- rbind(LRR.7,LRR.13,LRR.22,LRR.45)
 
-plot(NA,xlim=c(1,4),ylim=c(-1.5,1.5),xlab="Patch size",ylab="ln(connected/isolated)",xaxt="n")
-  axis(1,at=1:4,labels=dat.lrr$size)
-  abline(h=0,lty=3)
-  arrows(1:4,dat.lrr$mean.lrr + dat.lrr$CI,1:4, dat.lrr$mean.lrr - dat.lrr$CI,angle=90,code=3,length=0.05)
-  points(dat.lrr$size,dat.lrr$mean.lrr,pch=16)
+SE_LRR.7 <- sqrt( (D_Res_Vol_green$se[1]^2/D_Res_Vol_green[1,4]^2) + (D_Res_Vol_green$se[5]^2/D_Res_Vol_green[5,4]^2) ) #From Hedge et al., 1999
+SE_LRR.13 <- sqrt( (D_Res_Vol_green$se[2]^2/D_Res_Vol_green[2,4]^2) + (D_Res_Vol_green$se[6]^2/D_Res_Vol_green[6,4]^2) )
+SE_LRR.22 <- sqrt( (D_Res_Vol_green$se[3]^2/D_Res_Vol_green[3,4]^2) + (D_Res_Vol_green$se[7]^2/D_Res_Vol_green[7,4]^2) )
+SE_LRR.45 <- sqrt( (D_Res_Vol_green$se[4]^2/D_Res_Vol_green[4,4]^2) + (D_Res_Vol_green$se[8]^2/D_Res_Vol_green[8,4]^2) )
+SE_LRR <- rbind(SE_LRR.7,SE_LRR.13,SE_LRR.22,SE_LRR.45)
+
+CI.7 <- 1.96*SE_LRR.7
+CI.13 <- 1.96*SE_LRR.13
+CI.22 <- 1.96*SE_LRR.22
+CI.45 <- 1.96*SE_LRR.45
+CI <- rbind(CI.7,CI.13,CI.22,CI.45)
+
+size <- unique(D_Res_Vol_green$Size)
+
+bind.out_Res_Vol_green <- data.frame(size,LRR,CI)
+
+ggplot(bind.out_Res_Vol_green,mapping=aes(x=as.factor(size),y=LRR)) + coord_cartesian(ylim = c(-0.01,0.7)) +
+  ylab("Effect size (log ratio of means)") + xlab("Patch volume (mL)") +
+  geom_errorbar(aes(ymin=LRR-CI_lower, ymax=LRR+CI_upper), colour="darkgreen", width=0) +
+  geom_point(colour="darkgreen") +
+  geom_hline(yintercept=0,lty=2) +
+  annotate("text", x=0.7, y=0.7,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
+  annotate("text", x=0.7, y=-0.01,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic()
   
 ```
 
-Interestingly, the positive effect of being connected to the blue ecosystem is especially strong for the green patches that were connected with a small volume upstream site in the blue ecosystem. Here this figure is only showing day 21 which is the day where the effect of the treatment was strongest according to the previous figure, but the effect is also significant (LRR > 0) although smaller when averaging across all time periods. 
+Interestingly, the positive effect of being connected to the blue ecosystem is even across the green ecosystem no matter where they are connected in the dendritic network. It suggests that disperal along the lattice network act as a strong homogenizing force. There is an unsignificant trend here, nonetheless interesting, where the Effect size seems to follow a hump shape relationship with patch size. It is interesting because it somehow follow connectance in the blue ecosystem (middle patch size are most connected compared to smallest and largest): 
+```{r figure connectance dendritic network, echo=FALSE, dpi=400}
+D_connectance <- data %>%
+  filter(day !=0) %>% 
+  mutate(Size = as.numeric(as.character(Size))) %>% 
+  Rmisc::summarySE(.,measurevar = "degree", groupvars = c("Size"))
+
+ggplot(D_connectance,mapping=aes(x=Size,y=degree)) +
+  ylab("Connectance (degree)") + xlab("Patch volume (mL)") +
+  geom_errorbar(aes(ymin=degree-se, ymax=degree+se), width=0) +
+  geom_point() + theme_classic()
+```
+
+Let's explore those effects with a proper statistical model:
+```{r nlme_green_bact, echo=TRUE, eval=TRUE}
+
+#Extract data 
+
+X.bact <- data %>% 
+  filter(day!=0 & Replicate %in% c("A","B")) %>% 
+  mutate(Treatment = as.factor(Treatment),
+         day = factor(day,levels=c("7","15","21","29")),
+         day.cont = log(as.numeric(as.character(day))),
+         Size = as.numeric(as.character(Size)),
+         centrality = as.numeric(as.character(centrality)),
+         dist.outlet = as.numeric(as.character(dist.outlet)))
+
+#Run model (no log transformation based on histogramm of residuals)
+  #Also: here Time was not significant so it was removed from the fixed variables
+Mod4 <- nlme:::lme(bact.green ~ Treatment*Size + degree, 
+                   random = ~ as.factor(day)|Replicate, data=X.bact,
+                   method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+summary(Mod4)$tTable
+
+```
+
+From the model, we obtain the same information as with our LRR. There is a significant reduction of bacteria density in isolated green ecosystem compared to the ones connected to a blue ecosystem. Changes associated with size or degree are not significants. 
 
 # Conclusion
 
@@ -352,7 +435,7 @@ X.bact <- data %>%
          centrality = as.numeric(as.character(centrality)),
          dist.outlet = as.numeric(as.character(dist.outlet)))
 
-X1 <- data %>% 
+X.prot <- data %>% 
   filter(day!=0 & Replicate %in% c("A","B","C","D")) %>% 
   mutate(Treatment = as.factor(Treatment),
          day = factor(day,levels=c("7","15","21","29")),
@@ -364,13 +447,12 @@ X1 <- data %>%
 
 Let's print out the t Table
 ```{r nlme_blue_bact_results, echo=TRUE, eval=TRUE}
-# Run model
-Mod1 <- nlme:::lme(log(bact.blue) ~ Treatment*Size*day.cont + bact.green, 
+#Run model (no log transformation based on histogramm of residuals)
+Mod1 <- nlme:::lme(bact.blue ~ Treatment*Size*day.cont + bact.green, 
                    random = ~ 1|Replicate, data=X.bact,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod1)$tTable
 ```
-_please note that because Size is ordered, the intercept here represents the MEAN factor level and not the baseline level (Size=7.5) (L: linear, Q: Quadratic, C: Cubic)_
 
 We can see that three effects come as statistically significant: 
 - Size (only on day 29): decline of bacteria density with increasing patch size
@@ -391,7 +473,7 @@ X.1 <- X.bact %>%
 ggplot(mapping=aes(x=as.factor(Size),y=log(bact.blue)),data=X.1) +
   geom_boxplot(col="blue",alpha=0.5) -> p1
 
-ggplot(mapping=aes(x=day.cont,y=log(bact.blue)),data=X.bact) +
+ggplot(mapping=aes(x=day.cont,y=bact.blue),data=X.bact) +
   geom_point(col="blue",alpha=0.5) +
   geom_line(data=newdat,aes(y=predict(Mod1,newdata=newdat,level=0)),col="red") -> p2
 
@@ -401,9 +483,9 @@ grid.arrange(p1,p2,ncol=2)
 
 * Effect of resource pulse from Green ecosystem on protist density in Blue ecosystem
 ```{r nlme_prot_dens, echo=TRUE, eval=TRUE}
-# Run model
+#Run model (no log transformation based on histogramm of residuals)
 Mod2 <- nlme:::lme(prot.ab ~ Treatment*Size*day.cont, 
-                   random = ~ 1|Replicate, data=X1,
+                   random = ~ 1|Replicate, data=X.prot,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod2)$tTable
 ```
@@ -417,12 +499,12 @@ We can see that three effects come as statistically significant:
 
 # Plot results
 
-ggplot(mapping=aes(x=as.factor(Size),y=prot.ab),data=X1) +
+ggplot(mapping=aes(x=as.factor(Size),y=prot.ab),data=X.prot) +
   geom_boxplot() + facet_wrap(~ day)   
 
 
 
-ggplot(mapping=aes(x=day,y=prot.ab),data=X1) +
+ggplot(mapping=aes(x=day,y=prot.ab),data=X.prot) +
    geom_boxplot(col="blue",alpha=0.5) 
 
 
@@ -431,9 +513,9 @@ ggplot(mapping=aes(x=day,y=prot.ab),data=X1) +
 * Effect of resource pulse from Green ecosystem on protist richness in Blue ecosystem
 
 ```{r nlme_prot_rich, echo=TRUE, eval=TRUE}
-# Run model
+#Run model (no log transformation based on histogramm of residuals)
 Mod3 <- nlme:::lme(prot.rich ~ Treatment*Size*day.cont, 
-                   random = ~ 1|Replicate, data=X1,
+                   random = ~ 1|Replicate, data=X.prot,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod3)$tTable
 ```
@@ -446,13 +528,13 @@ We can see that two effects come as statistically significant:
 
 # Plot results
 
-X1.1 <- X1 %>%
+X1.1 <- X.prot %>%
   filter(day==29)
 ggplot(mapping=aes(x=as.factor(Size),y=prot.rich),data=X1.1) +
   geom_boxplot(col="blue",alpha=0.5) -> p1
 
-ggplot(mapping=aes(x=day.cont,y=prot.rich),data=X1) +
-  geom_point(col="blue",alpha=0.5)  -> p2
+ggplot(mapping=aes(x=day,y=prot.rich),data=X.prot) +
+  geom_boxplot(col="blue",alpha=0.5)  -> p2
 
 grid.arrange(p1,p2,ncol=2)
 
