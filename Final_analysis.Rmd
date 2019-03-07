@@ -1,16 +1,19 @@
 ---
-title: "Analysis from Harvey et al., XXX"
-author: "Eric"
-date: '2018-09-21'
-output: 
+title: "Notebook for BlueGreen project part 2"
+author:
+- Eric Harvey^1^, Isabelle Gounand^2^, Emanuel Fronhofer^3^, Florian Altermatt^2^
+- ^1^Universite de Montreal, ^2^University of Zurich, ^3^University of Montpellier
+output:
   html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
     highlight: tango
     theme: readable
-    toc: true
+    toc: yes
     toc_float:
-      collapsed: true
-      smooth_scroll: false
-    keep_md: true
+      collapsed: yes
+      smooth_scroll: no
 ---
 
 ```{r setup, include=FALSE }
@@ -22,6 +25,7 @@ library(vegan)
 library(RColorBrewer)
 library(gridExtra)
 library(nlme)
+library(scales)
 
 ##################
 #Directory paths 
@@ -37,6 +41,14 @@ to.R <- "./output/"
 ##################
 data = readRDS(paste0(to.output,"cl.data.RDS"))
 SP <- c("Rot","Spi","Ble","Pca","Col","Chi","Tet") #comm matrix
+
+##################
+#Set colour gradient for each species
+##################
+#colvec <- brewer.pal(7,"Set2")
+colvec <- c("#ff7f00","#1f78b4","navy","purple3","violetred","orangered2","#e31a1c")
+
+
 ```
 
 # Analytical pipeline
@@ -80,7 +92,7 @@ X <- data %>%
   mutate(Treatment = as.factor(Treatment),
          day = factor(day,levels=c("0","7","15","21","29")),
          day.cont = as.numeric(as.character(day)),
-         Size = as.ordered(Size),
+         Size = as.numeric(as.character(Size)),
          centrality = as.numeric(as.character(centrality)),
          dist.outlet = as.numeric(as.character(dist.outlet)))
          
@@ -106,9 +118,10 @@ So we ran the model:
 ```{r run_ordination, echo=TRUE}
 rda.mod <- rda(C ~ ., as.data.frame(E))
 rda.mod
+summary(rda.mod)$concont
 ```
 
-The model show that our environmental matrix explains roughly 31% of the variance, which is not amazing but not so bad.
+The model show that our environmental matrix explains roughly 31% of the variance, which is not amazing but not so bad. The first axis explains 71% of that 31% and the second axis 16%. 
 
 We then ran a permutation ANOVA on the terms: 
 ```{r ordi_ANOVA, echo=T}
@@ -125,19 +138,18 @@ So it turns out that both the position in the landscape and resource pulse influ
 
 Let's explore this model visually
 
-```{r ordination figs, echo=FALSE, dpi=400, warning=FALSE}
-##define color vector
-
-#display.brewer.all(nlevels(X$Treat.Size))
-colvec <- brewer.pal(nlevels(as.factor(X$Treatment)),"Dark2")
+```{r ordination figs, echo=FALSE, dpi=400, dev=c('png', 'pdf'), warning=FALSE}
+#colvec.R <- brewer.pal(3,"Dark2")
+colvec.R = c("darkgreen","chartreuse3")
 
 ##Plot
-ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.5))
-points(rda.mod, display="site", cex=0.5,pch=21,col=colvec[X$Treatment])
-points(rda.mod, display="cn", col="blue",cex=0.0000001)
-text(rda.mod, display="sp", col="blue",cex=0.5)
-legend("bottomleft",legend=levels(X$Treatment),col=colvec,pch=16,bty="n",cex=0.5)
-
+ordiplot(rda.mod,display="site",type="n",xlim=c(-1.5,1.6),cex.axis=1.4,cex.lab=1.4)
+points(rda.mod, display="cn", col="gray20",cex=0.0001,lwd=2)
+text(rda.mod, display="sp", col=colvec,cex=1.5,lwd=2)
+text(x=-0.95,y=-0.68,"T",col="gray20",cex=1.5)
+text(x=-0.38,y=0.68,"C",col="gray20",cex=1.5)
+text(x=-0.33,y=0.72,"V",col="gray20",cex=1.5)
+text(x=0.35,y=-0.65,"D",col="gray20",cex=1.5) 
 ```
 
 First looking at the predictors (arrows) one can see that higher patch volume and high centrality values co-varies, which make sense since larger patches are generally more connected. In direct opposition (180 degrees on the figure) higher distance to outlet values are found which also make sense since smaller patches are mainly found upstream and thus further from the outlet. Orthogonal to this gradient (90 degree) is the effect of time. The species scores are well distributed on the plot as a function of the different constraints. Each point on the figure is a microcosm with the two colors identifying them as being part of a connected or an isolated blue ecosystem. From the model we know that the effect of the treatment is significant and relatively important. Here we can see that there is indeed some level of difference between sites in connected and isolated ecosystems.  
@@ -156,16 +168,18 @@ with confidence interval:
 
 In complementarity with the RDA model, let's look at the log response ratio of the different protist species to the main treatment. 
 
-```{r effect size resource pulse on protist, include=FALSE}
+```{r LRR per species, echo=FALSE}
 
+#-- Get the LRR data for protists for Day 7 to 29 all patch size pooled
+#----------------------------------------------------------------------
+{
 #Create output file
 LRR_Res_protist <- data.frame(species=character(0),LRR=numeric(0),CI_upper=numeric(0),CI_lower=numeric(0))
 
 #Loop for each species
-
 for(i in 1:length(SP)) { 
   
-# Extract info for SP[i] and summarise data
+  # Extract info for SP[i] and summarise data
   D_Res_protist <- data %>% 
     filter(day !=0) %>% 
     select(SP[i],day, Treatment, Replicate, Size, centrality, degree, dist.outlet) %>% 
@@ -186,28 +200,58 @@ for(i in 1:length(SP)) {
   
   LRR_Res_protist <- rbind.data.frame(LRR_Res_protist,bind.out_Res_protist)
   
-  }
+}
 
-#Data calculated later in the document (added here for plotting purpose only - see below)
-LRR_bact_green <- data.frame(species="Bact (green)",LRR=0.2313328,CI_upper=0.3173062,CI_lower=0.1453594)
+}
 
-LRR_Res_protist <- rbind(LRR_Res_protist,LRR_bact_green)
+#-- Get the LRR data for BACTERIA IN GREEN for Day 7 to 29 all patches pooled
+#-------------------------------------------------------------------
+{
+  ####Generate data for LRR calculation
+  D_Res_green <- data %>% 
+    filter(day !=0 & Replicate %in% c("A","B")) %>% 
+    Rmisc::summarySE(.,measurevar = "bact.green", groupvars = c("Treatment"))
+  
+  #Calculate LRR
+  species <- "bacteriaG"
+  LRR <- log(D_Res_green[1,3]) - log(D_Res_green[2,3]) 
+  SE_LRR <- sqrt( (D_Res_green$se[1]^2/D_Res_green[1,3]^2) + (D_Res_green$se[2]^2/D_Res_green[2,3]^2) ) #From Hedge et al., 1999
+  CI_upper <- LRR + 1.96*SE_LRR
+  CI_lower <- LRR - 1.96*SE_LRR
+}
+bind.out_Res_green <- data.frame(species,LRR,CI_upper,CI_lower)
 
+#-- Get the LRR data for BACTERIA IN BLUE for Day 7 to 29 all patches pooled
+#-------------------------------------------------------------------
+{
+  ####Generate data for LRR calculation
+  D_Res_blue <- data %>% 
+    filter(day !=0 & Replicate %in% c("A","B")) %>% 
+    Rmisc::summarySE(.,measurevar = "bact.blue", groupvars = c("Treatment"))
+  
+  #Calculate LRR
+  species <- "bacteriaB"
+  LRR <- log(D_Res_blue[1,3]) - log(D_Res_blue[2,3]) 
+  SE_LRR <- sqrt( (D_Res_blue$se[1]^2/D_Res_blue[1,3]^2) + (D_Res_blue$se[2]^2/D_Res_blue[2,3]^2) ) #From Hedge et al., 1999
+  CI_upper <- LRR + 1.96*SE_LRR
+  CI_lower <- LRR - 1.96*SE_LRR
+}
+bind.out_Res_blue <- data.frame(species,LRR,CI_upper,CI_lower)
+
+#-- Put all data together
+#-------------------------------------------------------------------
+LRR_sp <- rbind(LRR_Res_protist,bind.out_Res_blue,bind.out_Res_green)
+LRR_sp
 ```
 
-```{r LRR figure 1, echo=FALSE, dpi=400}
-
-fig_dat_Res_protist <- LRR_Res_protist %>%
-  filter(species != "Other")
-
-ggplot(fig_dat_Res_protist,mapping=aes(x=species,y=LRR)) + coord_cartesian(ylim = c(-0.8,0.5)) +
-  xlab("Species") + ylab("Effect size (log ratio of means)") + 
-  geom_rect(fill="darkgreen",alpha=0.05, xmin=7.9, xmax=8.1, ymin=-Inf, ymax=Inf) +
-  geom_errorbar(aes(ymin= CI_lower, ymax= CI_upper),linetype=1,width=0) +
-  geom_point() +
-  geom_hline(yintercept=0,lty=2) +
-  annotate("text", x=1, y=0.5,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
-  annotate("text", x=1, y=-0.8,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic() 
+```{r fig LRR per species, echo=FALSE, dev=c('png', 'pdf'), dpi=400}
+layout(1)
+plot(c(1:8,10),LRR_sp$LRR,type="n",xlim=c(0.5,10.5),xlab = "Species",ylab = "Effect size (log ratio of mean densities)",ylim=c(-0.8,0.32), yaxt="n",xaxt="n",cex.lab=1.4,main ="Day 7 to 29")
+axis(2,at = c(-0.8,-0.6,-0.4,-0.2,0,0.2,0.4),labels = c(-0.8,-0.6,-0.4,-0.2,0,0.2,0.4),cex.axis=1.2,las=2)
+axis(1,at = c(1:8,10),labels = levels(LRR_sp$species),cex.axis=1.2)
+abline(h=0,lty=3); abline(v=9,lwd=1)
+segments(x0=c(1:8,10),x1=c(1:8,10),y0=LRR_sp$CI_upper,y1=LRR_sp$CI_lower,col=c(colvec,"grey60","darkgreen"),lwd=3)
+points(c(1:8,10),LRR_sp$LRR,col=c(colvec,"grey60","darkgreen"),pch=20,cex=2.5)
 
 ```
 
@@ -215,16 +259,23 @@ This figure conveys very similar information to the RDA figure: PCA and COL tend
 
 Now let's see if we can still detect the interaction with position in the network using patch size (which according to the RDA is the same as using distance to outlet or centrality): 
 
-```{r effect size resource pulse x volume, include=FALSE}
+```{r LRR by patch size, echo=FALSE}
+###############################################################
+#-- BY PATCH SIZE
+#--------------------------------------------------------------
 
-#Create output file
+#-- Get the LRR data for protist for Day 7 to 29 by patch size
+#---------------------------------------------------------------
+
+{
+  #Create output file
 LRR_Res_Vol_protist <- data.frame(size=numeric(0),species=character(0),LRR=numeric(0),CI_upper=numeric(0),CI_lower=numeric(0))
 
 #Loop for each species
 
 for(i in 1:length(SP)) { 
   
-# Extract info for SP[i] and summarise data
+  # Extract info for SP[i] and summarise data
   D_Res_Vol_protist <- data %>% 
     filter(day !=0) %>% 
     select(SP[i],day, Treatment, Replicate, Size, centrality, degree, dist.outlet) %>% 
@@ -265,29 +316,114 @@ for(i in 1:length(SP)) {
   
   LRR_Res_Vol_protist <- rbind.data.frame(LRR_Res_Vol_protist,bind.out_Res_Vol_protist)
   
-  }
+}
+}
 
+#-- Get the LRR data for BACTERIA GREEN for Day 7 to 29 by patch size
+#---------------------------------------------------------------
+
+{
+D_Res_Vol_green <- data %>% 
+  filter(day !=0 & Replicate %in% c("A","B")) %>% 
+  Rmisc::summarySE(.,measurevar = "bact.green", groupvars = c("Treatment","Size"))
+
+
+#Calculate LRR
+species <- "bacteria"
+LRR.7 <- log(D_Res_Vol_green[1,4]) - log(D_Res_Vol_green[5,4]) 
+LRR.13 <- log(D_Res_Vol_green[2,4]) - log(D_Res_Vol_green[6,4])
+LRR.22 <- log(D_Res_Vol_green[3,4]) - log(D_Res_Vol_green[7,4])
+LRR.45 <- log(D_Res_Vol_green[4,4]) - log(D_Res_Vol_green[8,4])
+LRR <- rbind(LRR.7,LRR.13,LRR.22,LRR.45)
+
+SE_LRR.7 <- sqrt( (D_Res_Vol_green$se[1]^2/D_Res_Vol_green[1,4]^2) + (D_Res_Vol_green$se[5]^2/D_Res_Vol_green[5,4]^2) ) #From Hedge et al., 1999
+SE_LRR.13 <- sqrt( (D_Res_Vol_green$se[2]^2/D_Res_Vol_green[2,4]^2) + (D_Res_Vol_green$se[6]^2/D_Res_Vol_green[6,4]^2) )
+SE_LRR.22 <- sqrt( (D_Res_Vol_green$se[3]^2/D_Res_Vol_green[3,4]^2) + (D_Res_Vol_green$se[7]^2/D_Res_Vol_green[7,4]^2) )
+SE_LRR.45 <- sqrt( (D_Res_Vol_green$se[4]^2/D_Res_Vol_green[4,4]^2) + (D_Res_Vol_green$se[8]^2/D_Res_Vol_green[8,4]^2) )
+SE_LRR <- rbind(SE_LRR.7,SE_LRR.13,SE_LRR.22,SE_LRR.45)
+
+CI.7 <- 1.96*SE_LRR.7
+CI.13 <- 1.96*SE_LRR.13
+CI.22 <- 1.96*SE_LRR.22
+CI.45 <- 1.96*SE_LRR.45
+CI <- rbind(CI.7,CI.13,CI.22,CI.45)
+
+size <- unique(D_Res_Vol_green$Size)
+}
+bind.out_Res_Vol_green <- data.frame(size,LRR,CI)
+
+
+#-- Get the LRR data for BACTERIA BLUE for Day 7 to 29 by patch size
+#-------------------------------------------------------------------
+
+{
+  D_Res_Vol_blue <- data %>% 
+    filter(day !=0 & Replicate %in% c("A","B")) %>% 
+    Rmisc::summarySE(.,measurevar = "bact.blue", groupvars = c("Treatment","Size"))
+  
+  
+  #Calculate LRR
+  species <- "bacteria"
+  LRR.7 <- log(D_Res_Vol_blue[1,4]) - log(D_Res_Vol_blue[5,4]) 
+  LRR.13 <- log(D_Res_Vol_blue[2,4]) - log(D_Res_Vol_blue[6,4])
+  LRR.22 <- log(D_Res_Vol_blue[3,4]) - log(D_Res_Vol_blue[7,4])
+  LRR.45 <- log(D_Res_Vol_blue[4,4]) - log(D_Res_Vol_blue[8,4])
+  LRR <- rbind(LRR.7,LRR.13,LRR.22,LRR.45)
+  
+  SE_LRR.7 <- sqrt( (D_Res_Vol_blue$se[1]^2/D_Res_Vol_blue[1,4]^2) + (D_Res_Vol_blue$se[5]^2/D_Res_Vol_blue[5,4]^2) ) #From Hedge et al., 1999
+  SE_LRR.13 <- sqrt( (D_Res_Vol_blue$se[2]^2/D_Res_Vol_blue[2,4]^2) + (D_Res_Vol_blue$se[6]^2/D_Res_Vol_blue[6,4]^2) )
+  SE_LRR.22 <- sqrt( (D_Res_Vol_blue$se[3]^2/D_Res_Vol_blue[3,4]^2) + (D_Res_Vol_blue$se[7]^2/D_Res_Vol_blue[7,4]^2) )
+  SE_LRR.45 <- sqrt( (D_Res_Vol_blue$se[4]^2/D_Res_Vol_blue[4,4]^2) + (D_Res_Vol_blue$se[8]^2/D_Res_Vol_blue[8,4]^2) )
+  SE_LRR <- rbind(SE_LRR.7,SE_LRR.13,SE_LRR.22,SE_LRR.45)
+  
+  CI.7 <- 1.96*SE_LRR.7
+  CI.13 <- 1.96*SE_LRR.13
+  CI.22 <- 1.96*SE_LRR.22
+  CI.45 <- 1.96*SE_LRR.45
+  CI <- rbind(CI.7,CI.13,CI.22,CI.45)
+  
+  size <- unique(D_Res_Vol_blue$Size)
+}
+bind.out_Res_Vol_blue <- data.frame(size,LRR,CI)
+
+
+
+#--- Pool protist and bacteria LRR data per patch size
+LRR_size=rbind(LRR_Res_Vol_protist,
+          data.frame("size" = bind.out_Res_Vol_blue$size,"species"=rep("BacteriaB",4),"LRR"=bind.out_Res_Vol_blue$LRR,"CI_upper"=bind.out_Res_Vol_blue$LRR+bind.out_Res_Vol_blue$CI,"CI_lower"=bind.out_Res_Vol_blue$LRR-bind.out_Res_Vol_blue$CI),
+          data.frame("size" = bind.out_Res_Vol_green$size,"species"=rep("BacteriaG",4),"LRR"=bind.out_Res_Vol_green$LRR,"CI_upper"=bind.out_Res_Vol_green$LRR+bind.out_Res_Vol_green$CI,"CI_lower"=bind.out_Res_Vol_green$LRR-bind.out_Res_Vol_green$CI))
+row.names(LRR_size) <- 1:nrow(LRR_size)
+LRR_size
 ```
 
 
-```{r LRR figure 2, echo=FALSE, dpi=400}
-pd <- position_dodge(0.6)
+```{r Fig LRR by patch size, echo=FALSE, dev=c('png', 'pdf'), dpi=400}
+##-- Plot the results with detailed on patch size
+##-----------------------------------------------
 
-output_Res_Vol_protist <- LRR_Res_Vol_protist  %>%
-  filter(species != "Other") 
+#--- positions on the x-axis
+pos7.5 = c(1,7,13,19,25,31,37,43,50)
+labelPos = c(2,8,14,20,26,32,38,44,51)+0.5
 
-ggplot(output_Res_Vol_protist,mapping=aes(x=size,y=LRR)) + coord_cartesian(ylim = c(-1.5,0.7)) +
-  xlab("Patch volume (mL)") + ylab("Effect size (log ratio of means)") + 
-  geom_rect(fill="gray",alpha=0.05, xmin=0.7, xmax=1.3, ymin=-Inf, ymax=Inf) +
-  geom_rect(fill="gray",alpha=0.05, xmin=1.7, xmax=2.3, ymin=-Inf, ymax=Inf) +
-  geom_rect(fill="gray",alpha=0.05, xmin=2.7, xmax=3.3, ymin=-Inf, ymax=Inf) +
-  geom_rect(fill="gray",alpha=0.05, xmin=3.7, xmax=4.3, ymin=-Inf, ymax=Inf) +
-  geom_errorbar(aes(ymin=CI_lower, ymax=CI_upper,colour=species), position=pd, width=0) +
-  geom_point(aes(colour=species),position=pd) +
-  geom_hline(yintercept=0,lty=2) +
-  annotate("text", x=0.7, y=0.7,label="log(R+/R-) > 0",size=2.5,colour="darkgreen") + 
-  annotate("text", x=0.7, y=-1.5,label="log(R+/R-) < 0",size=2.5,colour="darkred") + theme_classic() 
-  
+#--- patch sizes and size of point to display patch size
+sizes = levels(LRR_size$size)
+cexVol= c(0.8,1.3,1.8,2.5)
+
+plot(NA,type="n",xlim=c(0,54),col=c(colvec,"black"),xlab = "Species",ylab = "Effect size (log ratio of mean densities)",ylim=c(-1.4,0.8), yaxt="n",xaxt="n",cex.lab=1.4,main ="Day 7 to 29")
+axis(2,at = c(-1.2,-0.8,-0.4,0,0.4,0.8),labels = c(-1.2,-0.8,-0.4,0,0.4,0.8),cex.axis=1.2,las=2)
+axis(1,at = labelPos,labels = levels(LRR_size$species),cex.axis=1.2)
+abline(h=0,lty=3); abline(v=48,lwd=1)
+
+for(i in 1:length(levels(LRR_size$size))){
+  subdat = subset(LRR_size,size==sizes[i])
+  segments(x0=c(pos7.5+i-1),c(pos7.5+i-1),y0=subdat$CI_upper,y1=subdat$CI_lower,col=c(colvec,"grey60","darkgreen"),lwd=2)
+  points(c(pos7.5+i-1),subdat$LRR,col=c(colvec,"grey60","darkgreen"),pch=20,cex=cexVol[i])
+}
+
+legend("bottomleft",lty=rep(1,4),pch=20,pt.cex=cexVol,lwd=2,legend = sizes,title="Patch sizes",bty = "n",cex=0.8)
+
+
+
 ```
 
 Again, the same information is conveyed. We do see the interaction with PCA and COL being more abundant in the upstream (smaller volume) of the connected ecosystem, and CHI and TET being more abundant in the upstream (smaller volume) patches of the isolated ecosystem. For CHI this is also true for intermediate patch sizes.
@@ -401,7 +537,7 @@ X.bact <- data %>%
 
 #Run model (no log transformation based on histogramm of residuals)
   #Also: here Time was not significant so it was removed from the fixed variables
-Mod4 <- nlme:::lme(bact.green ~ Treatment*Size + degree, 
+Mod4 <- nlme:::lme(bact.green ~ Treatment*Size + degree + bact.blue + prot.ab + prot.rich, 
                    random = ~ as.factor(day)|Replicate, data=X.bact,
                    method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod4)$tTable
